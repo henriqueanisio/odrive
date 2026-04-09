@@ -88,13 +88,15 @@ uint8_t HID_ODrive_SendTelemetry(const HID_TelemetryPayload_t *payload)
 }
 
 /* ── HID_ODrive_SendConfigResponse ──────────────────────────────────────── */
-uint8_t HID_ODrive_SendConfigResponse(const HID_ConfigResponse_t *resp)
+uint8_t HID_ODrive_SendConfigResponse(uint16_t param_id, float value)
 {
-    /* resp->report_id must already be set to HID_REPORT_ID_CONFIG_RESP.
-     * The struct is 7 bytes and is sent as-is (it starts with the report_id). */
-    return USBD_HID_SendReport(&hUsbDeviceFS,
-                               (uint8_t *)resp,
-                               sizeof(HID_ConfigResponse_t));
+    uint8_t report[1 + 2 + 4];
+
+    report[0] = HID_REPORT_ID_CONFIG_RESP;
+    memcpy(&report[1], &param_id, 2);
+    memcpy(&report[3], &value, 4);
+
+    return USBD_HID_SendReport(&hUsbDeviceFS, report, sizeof(report));
 }
 
 /* ── HID_ODrive_ProcessCommand (weak default) ────────────────────────────────

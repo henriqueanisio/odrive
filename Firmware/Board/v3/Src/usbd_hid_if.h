@@ -73,10 +73,9 @@ typedef struct __attribute__((packed)) {
  *   Full report sent as [0x04 | uint16 param_id | float value].
  * ─────────────────────────────────────────────────────────────────────────── */
 typedef struct __attribute__((packed)) {
-    uint8_t  report_id;   /* HID_REPORT_ID_CONFIG_RESP */
     uint16_t param_id;
     float    value;
-} HID_ConfigResponse_t;             /* 7 bytes including report_id */
+} HID_ConfigResponsePayload_t;           /* 7 bytes including report_id */
 
 /* ── Public API ─────────────────────────────────────────────────────────────
  *
