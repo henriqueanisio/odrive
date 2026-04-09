@@ -209,12 +209,14 @@ stm32_usb_device_library_pkg = {
     include_dirs = {
         'Core/Inc',
         'Class/CDC/Inc',
+        'Class/HID/Inc',
     },
     code_files = {
         'Core/Src/usbd_core.c',
         'Core/Src/usbd_ctlreq.c',
         'Core/Src/usbd_ioreq.c',
         'Class/CDC/Src/usbd_cdc.c',
+        'Class/HID/Src/usbd_hid.c',
     }
 }
 
@@ -252,6 +254,7 @@ board_v3 = {
         'Src/spi.c',
         'Src/usart.c',
         'Src/usbd_cdc_if.c',
+        'Src/usbd_hid_if.c',
         'Src/adc.c',
         'Src/stm32f4xx_hal_msp.c',
         'Src/usbd_desc.c',

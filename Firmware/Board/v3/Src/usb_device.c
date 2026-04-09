@@ -54,6 +54,8 @@
 #include "usbd_desc.h"
 #include "usbd_cdc.h"
 #include "usbd_cdc_if.h"
+#include "usbd_hid.h"
+#include "usbd_hid_if.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -95,14 +97,16 @@ void MX_USB_DEVICE_Init(void)
   /* USER CODE BEGIN USB_DEVICE_Init_PreTreatment */
   
   /* USER CODE END USB_DEVICE_Init_PreTreatment */
+
   
   /* Init Device Library, add supported class and start the library. */
   USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS);
 
-  USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
+  // USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
 
-  USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS);
-
+  // USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS);
+  
+  USBD_RegisterClass(&hUsbDeviceFS, &USBD_HID);
   USBD_Start(&hUsbDeviceFS);
 
   /* USER CODE BEGIN USB_DEVICE_Init_PostTreatment */
