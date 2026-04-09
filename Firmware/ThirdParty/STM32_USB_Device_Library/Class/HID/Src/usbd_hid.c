@@ -14,18 +14,22 @@
 static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req);
+static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev);
 static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum);
 static uint8_t *USBD_HID_GetFSCfgDesc(uint16_t *length);
 static uint8_t *USBD_HID_GetHSCfgDesc(uint16_t *length);
 static uint8_t *USBD_HID_GetOtherSpeedCfgDesc(uint16_t *length);
 static uint8_t *USBD_HID_GetDeviceQualifierDesc(uint16_t *length);
 
+/* Forward declaration — defined in usbd_hid_if.c (weak) or application */
+extern void HID_ODrive_ProcessCommand(const void *cmd);
+
 USBD_ClassTypeDef USBD_HID = {
     USBD_HID_Init,
     USBD_HID_DeInit,
     USBD_HID_Setup,
     NULL,               /* EP0_TxSent */
-    NULL,               /* EP0_RxReady */
+    USBD_HID_EP0_RxReady, /* EP0_RxReady — handles incoming Feature Reports */
     USBD_HID_DataIn,
     NULL,               /* DataOut */
     NULL,               /* SOF */
@@ -147,6 +151,11 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
         case HID_REQ_GET_IDLE:
             USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
             break;
+        case HID_REQ_SET_REPORT:
+            /* Feature Report from host (e.g. command payload) */
+            USBD_CtlPrepareRx(pdev, hhid->FeatureBuf,
+                              MIN(req->wLength, HID_FEATURE_REPORT_BUF_SIZE));
+            break;
         default:
             USBD_CtlError(pdev, req);
             ret = USBD_FAIL;
@@ -231,6 +240,16 @@ uint8_t USBD_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t 
 
     hhid->state = HID_BUSY;
     USBD_LL_Transmit(pdev, HID_EPIN_ADDR, report, len);
+    return (uint8_t)USBD_OK;
+}
+
+static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
+{
+    USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
+    /* FeatureBuf[0] = Report ID, FeatureBuf[1..] = payload */
+    if (hhid->FeatureBuf[0] == 0x03U) {   /* HID_REPORT_ID_COMMAND */
+        HID_ODrive_ProcessCommand(&hhid->FeatureBuf[1]);
+    }
     return (uint8_t)USBD_OK;
 }
 

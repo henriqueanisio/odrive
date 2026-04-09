@@ -17,14 +17,14 @@ extern "C" {
 /** @defgroup USBD_HID_Exported_Defines */
 
 #define HID_EPIN_ADDR               0x81U
-#define HID_EPIN_SIZE               0x04U
-#define HID_FS_BINTERVAL            0x0AU   /* 10 ms */
+#define HID_EPIN_SIZE               0x40U  /* 64 bytes — fits telemetry report  */
+#define HID_FS_BINTERVAL            0x0AU  /* 10 ms                             */
 
 #define USB_HID_CONFIG_DESC_SIZ     34U
 #define USB_HID_DESC_SIZ            9U
 
-/* Size of the joystick report descriptor defined in usbd_hid_if.c */
-#define HID_REPORT_DESC_SIZE        21U
+/* Combined descriptor: joystick (23 B) + vendor (38 B) = 61 bytes */
+#define HID_REPORT_DESC_SIZE        61U
 
 #define HID_DESCRIPTOR_TYPE         0x21U
 #define HID_REPORT_DESC_TYPE        0x22U
@@ -41,11 +41,15 @@ extern "C" {
 #define HID_IDLE                    0U
 #define HID_BUSY                    1U
 
+/* Buffer for Feature Reports received via SET_REPORT (host → device) */
+#define HID_FEATURE_REPORT_BUF_SIZE  8U
+
 typedef struct {
     uint32_t Protocol;
     uint32_t IdleState;
     uint32_t AltSetting;
     volatile uint32_t state;
+    uint8_t  FeatureBuf[HID_FEATURE_REPORT_BUF_SIZE];
 } USBD_HID_HandleTypeDef;
 
 /** Report descriptor is defined in usbd_hid_if.c */

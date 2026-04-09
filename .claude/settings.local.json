@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p autogen)",
+      "Bash(python -B ../tools/odrive/version.py --output autogen/version.c)",
+      "Bash(tup)"
+    ]
+  }
+}
