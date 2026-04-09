@@ -66,9 +66,15 @@ void protocol_dispatch(const HID_Command_t *cmd)
 
         case HID_CMD_GET_CONFIG: {
             float out = 0.0f;
+
             if (config_get(pid, &out)) {
+                printf("GET OK ID=%d VALUE=%f\n", pid, out);
+
                 protocol_send_config_response(pid, out);
+            } else {
+                printf("GET FAIL ID=%d\n", pid);
             }
+
             break;
         }
 
