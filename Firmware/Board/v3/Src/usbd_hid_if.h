@@ -24,7 +24,7 @@ extern "C" {
 #define HID_JOYSTICK_PAYLOAD_SIZE   2U
 #define HID_TELEMETRY_PAYLOAD_SIZE 37U
 #define HID_COMMAND_PAYLOAD_SIZE    8U
-#define HID_CONFIG_RESP_PAYLOAD_SIZE 7U
+#define HID_CONFIG_RESP_PAYLOAD_SIZE 6U
 
 /* ── Telemetry input payload (37 bytes, little-endian packed) ────────────────
  *
