@@ -24,7 +24,7 @@ extern "C" {
 #define HID_JOYSTICK_PAYLOAD_SIZE   2U
 #define HID_TELEMETRY_PAYLOAD_SIZE 37U
 #define HID_COMMAND_PAYLOAD_SIZE    8U
-#define HID_CONFIG_RESP_PAYLOAD_SIZE 7U
+#define HID_CONFIG_RESP_PAYLOAD_SIZE 6U
 
 /* ── Telemetry input payload (37 bytes, little-endian packed) ────────────────
  *
@@ -94,7 +94,7 @@ typedef struct __attribute__((packed)) {
  * ─────────────────────────────────────────────────────────────────────────── */
 uint8_t HID_Joystick_Send           (int16_t value);
 uint8_t HID_ODrive_SendTelemetry    (const HID_TelemetryPayload_t *payload);
-uint8_t HID_ODrive_SendConfigResponse(const HID_ConfigResponse_t *resp);
+uint8_t HID_ODrive_SendConfigResponse(uint16_t param_id, float value);
 void    HID_ODrive_ProcessCommand   (const HID_CommandPayload_t *cmd);
 
 #ifdef __cplusplus

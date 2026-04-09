@@ -55,12 +55,6 @@ typedef struct __attribute__((packed)) {
 /* ── Config Response (Input Report 0x04) ────────────────────────────────────── */
 #define HID_REPORT_ID_CONFIG_RESP  0x04U
 
-typedef struct __attribute__((packed)) {
-    uint8_t  report_id;
-    uint16_t param_id;
-    float    value;
-} HID_ConfigResponse_t;
-
 /* ── Deferred action flags ──────────────────────────────────────────────────── */
 typedef enum {
     PENDING_CALL_NONE           = 0,

@@ -155,9 +155,5 @@ void protocol_process_pending(void)
 
 bool protocol_send_config_response(uint16_t param_id, float value)
 {
-    HID_ConfigResponse_t resp;
-    resp.report_id = HID_REPORT_ID_CONFIG_RESP;
-    resp.param_id  = param_id;
-    resp.value     = value;
-    return (HID_ODrive_SendConfigResponse(&resp) == USBD_OK);
+    return (HID_ODrive_SendConfigResponse(param_id, value) == USBD_OK);
 }
