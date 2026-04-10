@@ -158,47 +158,7 @@ static void app_apply_config_core(void)
      * For incremental encoders this is a no-op (timer was initialised at boot). */
     ax.encoder_.setup();
 
-    apply_incremental_encoder_hw(ax);
-}
-
-/* ── app_apply_config ────────────────────────────────────────────────────────
- * User-triggered apply (via CALL_APPLY_CONFIG from GUI).
- * Applies config AND detects encoder mode changes that require a reboot.
- *
- * WHY TWO FUNCTIONS:
- *   Encoder mode changes require the STM32 hardware timer to be reconfigured,
- *   which only happens cleanly at boot.  We detect a mode change here and
- *   issue a soft-reset so the timer is properly re-initialised.
- *
- *   This check MUST NOT run at startup (hid_app_init uses app_apply_config_core
- *   instead) because at startup the ODrive live mode is always the default
- *   (INCREMENTAL = 0) before any config is applied, which would falsely trigger
- *   a reboot every time the board powers on with a non-incremental mode saved.
- * ─────────────────────────────────────────────────────────────────────────── */
-static void app_apply_config(void)
-{
-    Axis &ax = axis0();
-
-    /* Snapshot current live mode BEFORE applying so we can detect a change. */
-    int32_t live_mode = static_cast<int32_t>(ax.encoder_.config_.mode);
-
-    app_apply_config_core();
-
-    if (live_mode != g_config.encoder_mode) {
-        /* Mode changed: persist to flash then reboot so the timer is
-         * re-initialised correctly for the new mode.
-         * clear_errors() after the flash erase suppresses TIMER_UPDATE_MISSED. */
-        flash_save_config();
-        odrv.clear_errors();
-        HAL_Delay(20);       /* allow USB ACK to reach host before reset */
-        NVIC_SystemReset();
-        /* never reached */
-    }
-}
-
-static void apply_incremental_encoder_hw(Axis &ax)
-{
-    if (g_config.encoder_mode != 0) return; // só incremental
+     if (g_config.encoder_mode != 0) return; // só incremental
 
     // =========================
     // GPIO CONFIG (A e B)
@@ -254,6 +214,42 @@ static void apply_incremental_encoder_hw(Axis &ax)
     HAL_TIM_Encoder_Init(htim, &sConfig);
     HAL_TIM_Encoder_Start(htim, TIM_CHANNEL_ALL);
 }
+
+/* ── app_apply_config ────────────────────────────────────────────────────────
+ * User-triggered apply (via CALL_APPLY_CONFIG from GUI).
+ * Applies config AND detects encoder mode changes that require a reboot.
+ *
+ * WHY TWO FUNCTIONS:
+ *   Encoder mode changes require the STM32 hardware timer to be reconfigured,
+ *   which only happens cleanly at boot.  We detect a mode change here and
+ *   issue a soft-reset so the timer is properly re-initialised.
+ *
+ *   This check MUST NOT run at startup (hid_app_init uses app_apply_config_core
+ *   instead) because at startup the ODrive live mode is always the default
+ *   (INCREMENTAL = 0) before any config is applied, which would falsely trigger
+ *   a reboot every time the board powers on with a non-incremental mode saved.
+ * ─────────────────────────────────────────────────────────────────────────── */
+static void app_apply_config(void)
+{
+    Axis &ax = axis0();
+
+    /* Snapshot current live mode BEFORE applying so we can detect a change. */
+    int32_t live_mode = static_cast<int32_t>(ax.encoder_.config_.mode);
+
+    app_apply_config_core();
+
+    if (live_mode != g_config.encoder_mode) {
+        /* Mode changed: persist to flash then reboot so the timer is
+         * re-initialised correctly for the new mode.
+         * clear_errors() after the flash erase suppresses TIMER_UPDATE_MISSED. */
+        flash_save_config();
+        odrv.clear_errors();
+        HAL_Delay(20);       /* allow USB ACK to reach host before reset */
+        NVIC_SystemReset();
+        /* never reached */
+    }
+}
+
 
 /* ── HID_ODrive_ProcessCommand — strong override ─────────────────────────────
  * Called from USB ISR (via USBD_HID_EP0_RxReady). Must not block.
