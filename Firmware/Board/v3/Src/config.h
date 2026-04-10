@@ -36,6 +36,10 @@ extern "C" {
 #define CFG_ENCODER_ABS_SPI_CS_GPIO         306U  /* abs_spi_cs_gpio_pin               */
 #define CFG_ENCODER_PRE_CALIBRATED          307U  /* pre_calibrated: 0/1               */
 #define CFG_ENCODER_USE_INDEX               308U  /* use Z/index channel: 0/1          */
+#define CFG_ENCODER_PIN_A                   309U
+#define CFG_ENCODER_PIN_B                   310U
+#define CFG_ENCODER_GPIO_PULL               311U
+#define CFG_ENCODER_FILTER                  312U
 
 /* Controller */
 #define CFG_CTRL_POS_GAIN                   410U
@@ -76,7 +80,11 @@ typedef struct {
     int32_t abs_spi_cs_gpio_pin;
     int32_t encoder_pre_calibrated;     /* bool: 0/1                                */
     int32_t encoder_use_index;          /* bool: 0/1 — enable Z/index channel       */
-
+    int32_t encoder_pin_a;
+    int32_t encoder_pin_b;
+    int32_t encoder_gpio_pull;
+    int32_t encoder_filter;
+    
     /* Controller */
     float   pos_gain;
     float   vel_gain;

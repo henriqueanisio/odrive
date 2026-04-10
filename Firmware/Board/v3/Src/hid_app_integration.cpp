@@ -157,6 +157,8 @@ static void app_apply_config_core(void)
     /* Re-run SPI setup so CLK polarity / CS pin / mode_ take effect.
      * For incremental encoders this is a no-op (timer was initialised at boot). */
     ax.encoder_.setup();
+
+    apply_incremental_encoder_hw(ax);
 }
 
 /* ── app_apply_config ────────────────────────────────────────────────────────
@@ -192,6 +194,65 @@ static void app_apply_config(void)
         NVIC_SystemReset();
         /* never reached */
     }
+}
+
+static void apply_incremental_encoder_hw(Axis &ax)
+{
+    if (g_config.encoder_mode != 0) return; // só incremental
+
+    // =========================
+    // GPIO CONFIG (A e B)
+    // =========================
+
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF2_TIM3; // ⚠ ajuste conforme seu timer
+
+    // 🔥 AQUI entra o pull
+    switch (g_config.encoder_gpio_pull)
+    {
+        case 0: GPIO_InitStruct.Pull = GPIO_NOPULL; break;
+        case 1: GPIO_InitStruct.Pull = GPIO_PULLUP; break;
+        case 2: GPIO_InitStruct.Pull = GPIO_PULLDOWN; break;
+    }
+
+    // ⚠ AJUSTAR PORTA E PINO
+    // 🔥 PB4 = A
+    GPIO_InitStruct.Pin = GPIO_PIN_4;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // 🔥 PB5 = B
+    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    // =========================
+    // TIMER ENCODER CONFIG
+    // =========================
+
+    TIM_HandleTypeDef *htim = &htim3; // ⚠ ajuste
+
+    TIM_Encoder_InitTypeDef sConfig = {0};
+
+    sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
+
+    sConfig.IC1Polarity  = TIM_INPUTCHANNELPOLARITY_RISING;
+    sConfig.IC2Polarity  = TIM_INPUTCHANNELPOLARITY_RISING;
+
+    sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+    sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+
+    sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+    sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+
+    // 🔥 filtro (anti jitter)
+    sConfig.IC1Filter = g_config.encoder_filter;
+    sConfig.IC2Filter = g_config.encoder_filter;
+
+    HAL_TIM_Encoder_Stop(htim, TIM_CHANNEL_ALL);
+    HAL_TIM_Encoder_Init(htim, &sConfig);
+    HAL_TIM_Encoder_Start(htim, TIM_CHANNEL_ALL);
 }
 
 /* ── HID_ODrive_ProcessCommand — strong override ─────────────────────────────

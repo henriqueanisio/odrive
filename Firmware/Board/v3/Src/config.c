@@ -89,6 +89,17 @@ bool config_set(uint16_t param_id, float value)
         case CFG_ENCODER_USE_INDEX:
             g_config.encoder_use_index = (value != 0.0f) ? 1 : 0;      return true;
 
+        case CFG_ENCODER_PIN_A:
+            g_config.encoder_pin_a = (int32_t)value; return true;
+
+        case CFG_ENCODER_PIN_B:
+            g_config.encoder_pin_b = (int32_t)value; return true;
+
+        case CFG_ENCODER_GPIO_PULL:
+            g_config.encoder_gpio_pull = (int32_t)value; return true;
+
+        case CFG_ENCODER_FILTER:
+            g_config.encoder_filter = (int32_t)value; return true;
         /* ── Controller (400–499) ── */
         case CFG_CTRL_POS_GAIN:
             if (value < 0.0f) return false;
@@ -180,7 +191,14 @@ bool config_get(uint16_t param_id, float *value_out)
             *value_out = (float)g_config.encoder_pre_calibrated;      return true;
         case CFG_ENCODER_USE_INDEX:
             *value_out = (float)g_config.encoder_use_index;           return true;
-
+        case CFG_ENCODER_PIN_A:
+            *value_out = (float)g_config.encoder_pin_a;               return true;
+        case CFG_ENCODER_PIN_B:
+            *value_out = (float)g_config.encoder_pin_b;               return true;
+        case CFG_ENCODER_GPIO_PULL:
+            *value_out = (float)g_config.encoder_gpio_pull;           return true;
+        case CFG_ENCODER_FILTER:
+            *value_out = (float)g_config.encoder_filter;              return true;
         case CFG_CTRL_POS_GAIN:
             *value_out = g_config.pos_gain;                           return true;
         case CFG_CTRL_VEL_GAIN:
