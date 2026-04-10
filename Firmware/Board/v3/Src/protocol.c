@@ -19,6 +19,7 @@ static ProtocolCallbacks_t s_cb = {
     .clear_errors   = _noop_void,
     .enter_dfu      = _noop_void,
     .apply_config   = _noop_void,
+    .set_home       = _noop_void,
 };
 
 void protocol_init(const ProtocolCallbacks_t *callbacks)
@@ -29,6 +30,7 @@ void protocol_init(const ProtocolCallbacks_t *callbacks)
         if (callbacks->clear_errors)   s_cb.clear_errors   = callbacks->clear_errors;
         if (callbacks->enter_dfu)      s_cb.enter_dfu      = callbacks->enter_dfu;
         if (callbacks->apply_config)   s_cb.apply_config   = callbacks->apply_config;
+        if (callbacks->set_home)       s_cb.set_home       = callbacks->set_home;
     }
 }
 
@@ -89,6 +91,8 @@ void protocol_dispatch(const HID_Command_t *cmd)
                     g_pending_call = PENDING_CALL_SET_IDLE;        break;
                 case CALL_APPLY_CONFIG:
                     g_pending_call = PENDING_CALL_APPLY_CONFIG;    break;
+                case CALL_SET_HOME:
+                    g_pending_call = PENDING_CALL_SET_HOME;        break;
                 default: break;
             }
             break;
@@ -137,6 +141,9 @@ void protocol_process_pending(void)
                 break;
             case PENDING_CALL_APPLY_CONFIG:
                 s_cb.apply_config();
+                break;
+            case PENDING_CALL_SET_HOME:
+                s_cb.set_home();
                 break;
             default:
                 break;

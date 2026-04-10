@@ -43,6 +43,7 @@ extern "C" {
 #define CALL_CLEAR_ERRORS           5U
 #define CALL_SET_IDLE               6U
 #define CALL_APPLY_CONFIG           7U  /* apply g_config to ODrive live objects */
+#define CALL_SET_HOME               8U  /* capture current pos as position zero  */
 
 /* ── Command payload (Feature Report payload, 8 bytes) ─────────────────────── */
 typedef struct __attribute__((packed)) {
@@ -65,6 +66,7 @@ typedef enum {
     PENDING_CALL_CLEAR_ERRORS   = CALL_CLEAR_ERRORS,
     PENDING_CALL_SET_IDLE       = CALL_SET_IDLE,
     PENDING_CALL_APPLY_CONFIG   = CALL_APPLY_CONFIG,
+    PENDING_CALL_SET_HOME       = CALL_SET_HOME,
 } PendingCall_t;
 
 extern volatile PendingCall_t g_pending_call;
@@ -81,6 +83,7 @@ typedef struct {
     void (*clear_errors)  (void);
     void (*enter_dfu)     (void);
     void (*apply_config)  (void);  /* copy g_config → ODrive live objects */
+    void (*set_home)      (void);  /* capture current position as zero reference */
 } ProtocolCallbacks_t;
 
 /* ── Public API ──────────────────────────────────────────────────────────────── */

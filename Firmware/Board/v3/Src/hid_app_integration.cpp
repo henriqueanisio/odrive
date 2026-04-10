@@ -40,6 +40,9 @@
 /* ── Convenience accessor ───────────────────────────────────────────────────── */
 static inline Axis& axis0() { return odrv.get_axis(0); }
 
+/* ── Home / zero-position offset (set via CALL_SET_HOME) ────────────────────── */
+static float s_home_offset = 0.0f;
+
 /* ── Forward declaration ────────────────────────────────────────────────────── */
 static void app_apply_config(void);
 
@@ -53,7 +56,19 @@ static void app_set_axis_state(uint8_t state)
 
 static void app_set_input_pos(float pos)
 {
-    axis0().controller_.input_pos_ = pos;
+    /* pos from GUI is relative to home; add offset so controller sees absolute position */
+    axis0().controller_.input_pos_ = pos + s_home_offset;
+}
+
+static void app_set_home(void)
+{
+    /* Capture current encoder position as the new zero reference.
+     * All subsequent pos_estimate values in telemetry are reported
+     * relative to this point.  input_pos commands from the GUI are
+     * also relative, so we add s_home_offset inside app_set_input_pos. */
+    s_home_offset = axis0().encoder_.pos_estimate_.present().value_or(0.0f);
+    /* Keep the controller at the new home (pos = 0 relative to home) */
+    axis0().controller_.input_pos_ = s_home_offset;
 }
 
 static void app_clear_errors(void)
@@ -128,11 +143,12 @@ extern "C" void hid_send_telemetry(void)
 
     Axis &ax = axis0();
 
-    t.pos_estimate     = ax.encoder_.pos_estimate_.present().value_or(0.0f);
+    float pos_abs      = ax.encoder_.pos_estimate_.present().value_or(0.0f);
+    t.pos_estimate     = pos_abs - s_home_offset;
     t.vel_estimate     = ax.encoder_.vel_estimate_.present().value_or(0.0f);
     t.vbus_voltage     = odrv.vbus_voltage_;
     t.current_lim      = ax.motor_.config_.current_lim;
-    t.input_pos        = ax.controller_.input_pos_;
+    t.input_pos        = ax.controller_.input_pos_ - s_home_offset;
     t.Iq_measured      = ax.motor_.current_control_.Iq_measured_;
     t.phase_resistance = ax.motor_.config_.phase_resistance;
     t.phase_inductance = ax.motor_.config_.phase_inductance;
@@ -151,7 +167,7 @@ extern "C" void hid_send_telemetry(void)
     if (++joy_divider >= 10U) {
         joy_divider = 0U;
         int16_t joy_x = static_cast<int16_t>(
-            ax.encoder_.pos_estimate_.present().value_or(0.0f) * (32767.0f / 100.0f));
+            (ax.encoder_.pos_estimate_.present().value_or(0.0f) - s_home_offset) * (32767.0f / 100.0f));
         HID_Joystick_Send(joy_x);
         /* yield so the joystick packet can be transmitted before telemetry */
         osDelay(1);
@@ -177,6 +193,7 @@ extern "C" void hid_app_init(void)
         .clear_errors   = app_clear_errors,
         .enter_dfu      = app_enter_dfu,
         .apply_config   = app_apply_config,
+        .set_home       = app_set_home,
     };
     protocol_init(&cb);
 }
