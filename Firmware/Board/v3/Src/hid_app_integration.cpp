@@ -46,9 +46,8 @@ static void app_apply_config(void);
 /* ── Application callbacks ─────────────────────────────────────────────────── */
 static void app_set_axis_state(uint8_t state)
 {
-    axis0().error_           = Axis::ERROR_NONE;
-    axis0().motor_.error_    = Motor::ERROR_NONE;
-    axis0().encoder_.error_  = Encoder::ERROR_NONE;
+    /* clear_errors() also re-arms the brake resistor when enable_brake_resistor=true */
+    odrv.clear_errors();
     axis0().requested_state_ = static_cast<Axis::AxisState>(state);
 }
 
@@ -59,9 +58,8 @@ static void app_set_input_pos(float pos)
 
 static void app_clear_errors(void)
 {
-    axis0().error_           = Axis::ERROR_NONE;
-    axis0().motor_.error_    = Motor::ERROR_NONE;
-    axis0().encoder_.error_  = Encoder::ERROR_NONE;
+    /* Delegates to ODrive::clear_errors() so the brake resistor gets re-armed */
+    odrv.clear_errors();
 }
 
 static void app_enter_dfu(void)
