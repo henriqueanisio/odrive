@@ -55,7 +55,8 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */     
+/* USER CODE BEGIN Includes */
+#include "protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -79,12 +80,18 @@
 osThreadId defaultTaskHandle;
 const uint32_t stack_size_default_task = 2048; // Bytes
 
+/* USER CODE BEGIN Variables2 */
+osThreadId hidTaskHandle;
+/* USER CODE END Variables2 */
+
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+extern void hid_send_telemetry(void);
+extern void hid_app_init(void);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void * argument);
+void StartHIDTask(void * argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -144,7 +151,8 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
-
+  osThreadDef(hidTask, StartHIDTask, osPriorityBelowNormal, 0, 512 / sizeof(StackType_t));
+  hidTaskHandle = osThreadCreate(osThread(hidTask), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -171,6 +179,27 @@ void StartDefaultTask(void * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+/**
+  * @brief HID telemetry + protocol task.
+  *        Runs at ~10 ms cadence. Sends telemetry (Report 0x02) and
+  *        dispatches any pending protocol actions (e.g. GET_CONFIG → Report 0x04).
+  */
+void StartHIDTask(void *argument)
+{
+  /* Wait for USB stack to finish enumeration */
+  osDelay(500);
+
+  /* One-time init: load flash config, wire protocol callbacks */
+  hid_app_init();
+
+  for (;;)
+  {
+    hid_send_telemetry();
+    protocol_process_pending();
+    osDelay(10);
+  }
+}
 
 /* USER CODE END Application */
 
