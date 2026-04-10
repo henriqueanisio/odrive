@@ -24,6 +24,8 @@ extern "C" {
 #define CFG_MOTOR_CALIB_CURRENT             205U  /* calibration_current (A)           */
 #define CFG_MOTOR_CALIB_VOLTAGE             206U  /* resistance_calib_max_voltage (V)  */
 #define CFG_MOTOR_PRE_CALIBRATED            207U  /* pre_calibrated: 0/1               */
+#define CFG_MOTOR_PHASE_RESISTANCE          208U  /* measured phase resistance (Ω)     */
+#define CFG_MOTOR_PHASE_INDUCTANCE          209U  /* measured phase inductance (H)     */
 
 /* Encoder */
 #define CFG_ENCODER_CPR                     301U
@@ -33,6 +35,7 @@ extern "C" {
 #define CFG_ENCODER_BANDWIDTH               305U  /* bandwidth (Hz)                    */
 #define CFG_ENCODER_ABS_SPI_CS_GPIO         306U  /* abs_spi_cs_gpio_pin               */
 #define CFG_ENCODER_PRE_CALIBRATED          307U  /* pre_calibrated: 0/1               */
+#define CFG_ENCODER_USE_INDEX               308U  /* use Z/index channel: 0/1          */
 
 /* Controller */
 #define CFG_CTRL_POS_GAIN                   410U
@@ -61,6 +64,8 @@ typedef struct {
     float   calibration_current;         /* A                                       */
     float   resistance_calib_max_voltage;/* V                                       */
     int32_t motor_pre_calibrated;        /* bool: 0/1                               */
+    float   phase_resistance;           /* Ω — measured by motor calibration        */
+    float   phase_inductance;           /* H — measured by motor calibration        */
 
     /* Encoder */
     int32_t encoder_cpr;
@@ -70,6 +75,7 @@ typedef struct {
     float   encoder_bandwidth;          /* Hz                                       */
     int32_t abs_spi_cs_gpio_pin;
     int32_t encoder_pre_calibrated;     /* bool: 0/1                                */
+    int32_t encoder_use_index;          /* bool: 0/1 — enable Z/index channel       */
 
     /* Controller */
     float   pos_gain;
@@ -98,6 +104,8 @@ typedef struct {
     .calibration_current           = 10.0f,           \
     .resistance_calib_max_voltage  = 2.0f,            \
     .motor_pre_calibrated          = 0,               \
+    .phase_resistance              = 0.0f,            \
+    .phase_inductance              = 0.0f,            \
     .encoder_cpr                   = 8192,            \
     .encoder_direction             = 1,               \
     .encoder_offset                = 0.0f,            \
@@ -105,6 +113,7 @@ typedef struct {
     .encoder_bandwidth             = 100.0f,          \
     .abs_spi_cs_gpio_pin           = 7,               \
     .encoder_pre_calibrated        = 0,               \
+    .encoder_use_index             = 0,               \
     .pos_gain                      = 20.0f,           \
     .vel_gain                      = 0.16f,           \
     .vel_integrator_gain           = 0.32f,           \

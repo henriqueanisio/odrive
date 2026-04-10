@@ -114,6 +114,23 @@ static void app_apply_config_core(void)
     ax.motor_.config_.calibration_current           = g_config.calibration_current;
     ax.motor_.config_.resistance_calib_max_voltage  = g_config.resistance_calib_max_voltage;
     ax.motor_.config_.pre_calibrated                = g_config.motor_pre_calibrated != 0;
+    /* Restore measured calibration values so the current controller is correct
+     * even when skipping motor calibration (pre_calibrated = true). */
+    if (g_config.phase_resistance > 0.0f) {
+        ax.motor_.config_.phase_resistance = g_config.phase_resistance;
+    }
+    if (g_config.phase_inductance > 0.0f) {
+        ax.motor_.config_.phase_inductance = g_config.phase_inductance;
+    }
+    /* Motor::apply_config() sets is_calibrated_ = config_.pre_calibrated at boot,
+     * but we call app_apply_config_core() at runtime too.  Sync is_calibrated_
+     * here so the encoder-offset-calibration state machine gate (!is_calibrated_)
+     * works correctly without requiring a reboot after the user sets motor
+     * pre_calibrated = true.  Only raise the flag — never clear it at runtime
+     * so an in-session motor calibration result is not accidentally discarded. */
+    if (g_config.motor_pre_calibrated != 0) {
+        ax.motor_.is_calibrated_ = true;
+    }
 
     /* ── Encoder ── */
     ax.encoder_.config_.mode                        = static_cast<Encoder::Mode>(g_config.encoder_mode);
@@ -121,6 +138,7 @@ static void app_apply_config_core(void)
     ax.encoder_.config_.bandwidth                   = g_config.encoder_bandwidth;
     ax.encoder_.config_.abs_spi_cs_gpio_pin         = static_cast<uint8_t>(g_config.abs_spi_cs_gpio_pin);
     ax.encoder_.config_.pre_calibrated              = g_config.encoder_pre_calibrated != 0;
+    ax.encoder_.config_.use_index                   = g_config.encoder_use_index != 0;
     /* encoder_direction & offset are applied after calibration, not forced here */
 
     /* ── Controller ── */

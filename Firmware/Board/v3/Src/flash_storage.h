@@ -19,7 +19,7 @@ extern "C" {
 
 /* ── Persistent store layout ──────────────────────────────────────────────── */
 #define FLASH_CFG_MAGIC         0x4F445256UL   /* "ODRV" in ASCII             */
-#define FLASH_CFG_VERSION       2UL
+#define FLASH_CFG_VERSION       3UL
 
 typedef struct __attribute__((packed)) {
     uint32_t       magic;    /* Must equal FLASH_CFG_MAGIC                    */

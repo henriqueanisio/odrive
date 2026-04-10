@@ -49,6 +49,14 @@ bool config_set(uint16_t param_id, float value)
         case CFG_MOTOR_PRE_CALIBRATED:
             g_config.motor_pre_calibrated = (value != 0.0f) ? 1 : 0; return true;
 
+        case CFG_MOTOR_PHASE_RESISTANCE:
+            if (value < 0.0f || value > 10.0f) return false;
+            g_config.phase_resistance = value;                          return true;
+
+        case CFG_MOTOR_PHASE_INDUCTANCE:
+            if (value < 0.0f || value > 0.01f) return false;
+            g_config.phase_inductance = value;                          return true;
+
         /* ── Encoder (300–399) ── */
         case CFG_ENCODER_CPR: {
             int32_t cpr = (int32_t)value;
@@ -77,6 +85,9 @@ bool config_set(uint16_t param_id, float value)
 
         case CFG_ENCODER_PRE_CALIBRATED:
             g_config.encoder_pre_calibrated = (value != 0.0f) ? 1 : 0; return true;
+
+        case CFG_ENCODER_USE_INDEX:
+            g_config.encoder_use_index = (value != 0.0f) ? 1 : 0;      return true;
 
         /* ── Controller (400–499) ── */
         case CFG_CTRL_POS_GAIN:
@@ -148,6 +159,10 @@ bool config_get(uint16_t param_id, float *value_out)
             *value_out = g_config.resistance_calib_max_voltage;       return true;
         case CFG_MOTOR_PRE_CALIBRATED:
             *value_out = (float)g_config.motor_pre_calibrated;        return true;
+        case CFG_MOTOR_PHASE_RESISTANCE:
+            *value_out = g_config.phase_resistance;                   return true;
+        case CFG_MOTOR_PHASE_INDUCTANCE:
+            *value_out = g_config.phase_inductance;                   return true;
 
         case CFG_ENCODER_CPR:
             *value_out = (float)g_config.encoder_cpr;                 return true;
@@ -163,6 +178,8 @@ bool config_get(uint16_t param_id, float *value_out)
             *value_out = (float)g_config.abs_spi_cs_gpio_pin;         return true;
         case CFG_ENCODER_PRE_CALIBRATED:
             *value_out = (float)g_config.encoder_pre_calibrated;      return true;
+        case CFG_ENCODER_USE_INDEX:
+            *value_out = (float)g_config.encoder_use_index;           return true;
 
         case CFG_CTRL_POS_GAIN:
             *value_out = g_config.pos_gain;                           return true;
