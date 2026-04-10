@@ -46,6 +46,12 @@ static void app_apply_config(void);
 /* ── Application callbacks ─────────────────────────────────────────────────── */
 static void app_set_axis_state(uint8_t state)
 {
+    printf("[HID] set_axis_state(%d) err=0x%lx motor_err=0x%lx\n",
+           state,
+           (unsigned long)axis0().error_,
+           (unsigned long)axis0().motor_.error_);
+    axis0().error_        = Axis::ERROR_NONE;
+    axis0().motor_.error_ = Motor::ERROR_NONE;
     axis0().requested_state_ = static_cast<Axis::AxisState>(state);
 }
 
@@ -134,9 +140,9 @@ extern "C" void hid_send_telemetry(void)
     t.current_state    = static_cast<uint8_t>(ax.current_state_);
     t.flags            = (ax.encoder_.is_ready_        ? 0x01U : 0U)
                        | (ax.motor_.is_calibrated_      ? 0x02U : 0U);
-    t.axis_error       = static_cast<uint8_t>(ax.error_          != 0);
-    t.motor_error      = static_cast<uint8_t>(ax.motor_.error_   != 0);
-    t.encoder_error    = static_cast<uint8_t>(ax.encoder_.error_ != 0);
+    t.axis_error       = static_cast<uint32_t>(ax.error_);
+    t.motor_error      = static_cast<uint32_t>(ax.motor_.error_);
+    t.encoder_error    = static_cast<uint32_t>(ax.encoder_.error_);
 
     /* Alternate joystick and telemetry sends to avoid HID_BUSY on the shared
        interrupt IN endpoint. Telemetry every call (~10 ms); joystick every

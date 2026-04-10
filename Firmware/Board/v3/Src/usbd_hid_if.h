@@ -22,42 +22,42 @@ extern "C" {
 
 /* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
 #define HID_JOYSTICK_PAYLOAD_SIZE   2U
-#define HID_TELEMETRY_PAYLOAD_SIZE 37U
+#define HID_TELEMETRY_PAYLOAD_SIZE 46U
 #define HID_COMMAND_PAYLOAD_SIZE    8U
 #define HID_CONFIG_RESP_PAYLOAD_SIZE 6U
 
-/* ── Telemetry input payload (37 bytes, little-endian packed) ────────────────
+/* ── Telemetry input payload (46 bytes, little-endian packed) ────────────────
  *
  *   offset  size  field
- *    0       4    float  pos_estimate
- *    4       4    float  vel_estimate
- *    8       4    float  vbus_voltage
- *   12       4    float  current_lim
- *   16       4    float  input_pos
- *   20       4    float  Iq_measured
- *   24       4    float  phase_resistance
- *   28       4    float  phase_inductance
- *   32       1    uint8  current_state
- *   33       1    uint8  flags       bit0=enc_ready  bit1=motor_calibrated
- *   34       1    uint8  axis_error  (0=no error)
- *   35       1    uint8  motor_error (0=no error)
- *   36       1    uint8  enc_error   (0=no error)
+ *    0       4    float   pos_estimate
+ *    4       4    float   vel_estimate
+ *    8       4    float   vbus_voltage
+ *   12       4    float   current_lim
+ *   16       4    float   input_pos
+ *   20       4    float   Iq_measured
+ *   24       4    float   phase_resistance
+ *   28       4    float   phase_inductance
+ *   32       1    uint8   current_state
+ *   33       1    uint8   flags         bit0=enc_ready  bit1=motor_calibrated
+ *   34       4    uint32  axis_error    Axis::Error bitmask (0=no error)
+ *   38       4    uint32  motor_error   Motor::Error bitmask (0=no error)
+ *   42       4    uint32  encoder_error Encoder::Error bitmask (0=no error)
  * ─────────────────────────────────────────────────────────────────────────── */
 typedef struct __attribute__((packed)) {
-    float   pos_estimate;
-    float   vel_estimate;
-    float   vbus_voltage;
-    float   current_lim;
-    float   input_pos;
-    float   Iq_measured;
-    float   phase_resistance;
-    float   phase_inductance;
-    uint8_t current_state;
-    uint8_t flags;
-    uint8_t axis_error;
-    uint8_t motor_error;
-    uint8_t encoder_error;
-} HID_TelemetryPayload_t;          /* 37 bytes */
+    float    pos_estimate;
+    float    vel_estimate;
+    float    vbus_voltage;
+    float    current_lim;
+    float    input_pos;
+    float    Iq_measured;
+    float    phase_resistance;
+    float    phase_inductance;
+    uint8_t  current_state;
+    uint8_t  flags;
+    uint32_t axis_error;
+    uint32_t motor_error;
+    uint32_t encoder_error;
+} HID_TelemetryPayload_t;          /* 46 bytes */
 
 /* ── Command feature payload (8 bytes) ───────────────────────────────────────
  *   See protocol.h for cmd_id and param_id definitions.
