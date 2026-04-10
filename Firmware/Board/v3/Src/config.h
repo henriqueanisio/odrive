@@ -47,6 +47,9 @@ extern "C" {
 #define CFG_LIM_BRAKE_RESISTOR_ENABLE       502U  /* 0/1                               */
 #define CFG_LIM_BRAKE_RESISTANCE            503U  /* Ohms                              */
 
+/* Steering */
+#define CFG_STEERING_MAX_LOCK               510U  /* total degrees of wheel travel     */
+
 /* ── Config struct ─────────────────────────────────────────────────────────── */
 typedef struct {
     /* Motor */
@@ -80,6 +83,9 @@ typedef struct {
     float   vbus_overvoltage;
     int32_t enable_brake_resistor;      /* bool: 0/1                                */
     float   brake_resistance;          /* Ohms                                      */
+
+    /* Steering */
+    float   steering_max_lock;         /* total degrees of wheel travel (e.g. 900)  */
 } ODriveConfig_t;
 
 /* Factory defaults */
@@ -108,6 +114,7 @@ typedef struct {
     .vbus_overvoltage              = 56.0f,           \
     .enable_brake_resistor         = 0,               \
     .brake_resistance              = 2.0f,            \
+    .steering_max_lock             = 900.0f,          \
 }
 
 extern ODriveConfig_t g_config;

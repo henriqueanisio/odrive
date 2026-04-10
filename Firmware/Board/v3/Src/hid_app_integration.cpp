@@ -56,6 +56,10 @@ static void app_set_axis_state(uint8_t state)
 
 static void app_set_input_pos(float pos)
 {
+    /* Clamp to ±half of steering_max_lock in turns (e.g. 900° → ±1.25 turns) */
+    float half_turns = g_config.steering_max_lock / 720.0f;
+    if (pos >  half_turns) pos =  half_turns;
+    if (pos < -half_turns) pos = -half_turns;
     /* pos from GUI is relative to home; add offset so controller sees absolute position */
     axis0().controller_.input_pos_ = pos + s_home_offset;
 }
@@ -177,8 +181,14 @@ extern "C" void hid_send_telemetry(void)
     static uint8_t joy_divider = 0U;
     if (++joy_divider >= 10U) {
         joy_divider = 0U;
-        int16_t joy_x = static_cast<int16_t>(
-            (ax.encoder_.pos_estimate_.present().value_or(0.0f) - s_home_offset) * (32767.0f / 100.0f));
+        /* Scale: ±(steering_max_lock/2) degrees → ±32767
+         * half_turns = (steering_max_lock/2) / 360 = steering_max_lock / 720
+         * joy_x = pos_relative_turns / half_turns * 32767                    */
+        float half_turns = g_config.steering_max_lock / 720.0f;
+        float joy_f = (t.pos_estimate / half_turns) * 32767.0f;
+        if (joy_f >  32767.0f) joy_f =  32767.0f;
+        if (joy_f < -32767.0f) joy_f = -32767.0f;
+        int16_t joy_x = static_cast<int16_t>(joy_f);
         HID_Joystick_Send(joy_x);
         /* yield so the joystick packet can be transmitted before telemetry */
         osDelay(1);

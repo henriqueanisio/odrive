@@ -117,6 +117,11 @@ bool config_set(uint16_t param_id, float value)
             if (value <= 0.0f || value > 100.0f) return false;
             g_config.brake_resistance = value;                       return true;
 
+        /* ── Steering (510) ── */
+        case CFG_STEERING_MAX_LOCK:
+            if (value < 90.0f || value > 2160.0f) return false;
+            g_config.steering_max_lock = value;                      return true;
+
         default:
             return false;
     }
@@ -178,6 +183,9 @@ bool config_get(uint16_t param_id, float *value_out)
             *value_out = (float)g_config.enable_brake_resistor;       return true;
         case CFG_LIM_BRAKE_RESISTANCE:
             *value_out = g_config.brake_resistance;                   return true;
+
+        case CFG_STEERING_MAX_LOCK:
+            *value_out = g_config.steering_max_lock;                  return true;
 
         default:
             return false;
