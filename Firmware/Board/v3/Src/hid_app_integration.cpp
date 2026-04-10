@@ -174,6 +174,8 @@ extern "C" void hid_send_telemetry(void)
     t.axis_error       = static_cast<uint32_t>(ax.error_);
     t.motor_error      = static_cast<uint32_t>(ax.motor_.error_);
     t.encoder_error    = static_cast<uint32_t>(ax.encoder_.error_);
+    t.mag_agc          = ax.encoder_.abs_agc_;
+    t.mag_flags        = ax.encoder_.abs_diag_flags_;
 
     /* Alternate joystick and telemetry sends to avoid HID_BUSY on the shared
        interrupt IN endpoint. Telemetry every call (~10 ms); joystick every

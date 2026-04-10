@@ -145,6 +145,17 @@ public:
     uint16_t abs_spi_dma_rx_[1];
     Stm32SpiArbiter::SpiTask spi_task_;
 
+    /* ── AS5047P magnet diagnostic (DIAAGC register, read ~8/s) ──────────────
+     * abs_agc_:        0 = very strong field (too close),
+     *                  128 = optimal, 255 = very weak field (too far)
+     * abs_diag_flags_: bit0 = COMP_H (too close), bit1 = COMP_L (too far)
+     * ─────────────────────────────────────────────────────────────────────── */
+    uint8_t  abs_agc_               = 128U;
+    uint8_t  abs_diag_flags_        = 0U;
+    uint16_t abs_spi_diag_counter_  = 0U;
+    bool     abs_spi_diag_cmd_sent_ = false;  /* last tx was DIAAGC_CMD      */
+    bool     abs_spi_diag_rx_rdy_   = false;  /* next rx is DIAAGC data      */
+
     constexpr float getCoggingRatio(){
         return 1.0f / 3600.0f;
     }

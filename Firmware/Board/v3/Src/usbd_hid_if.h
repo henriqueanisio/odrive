@@ -22,7 +22,7 @@ extern "C" {
 
 /* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
 #define HID_JOYSTICK_PAYLOAD_SIZE   2U
-#define HID_TELEMETRY_PAYLOAD_SIZE 46U
+#define HID_TELEMETRY_PAYLOAD_SIZE 48U
 #define HID_COMMAND_PAYLOAD_SIZE    8U
 #define HID_CONFIG_RESP_PAYLOAD_SIZE 6U
 
@@ -42,6 +42,8 @@ extern "C" {
  *   34       4    uint32  axis_error    Axis::Error bitmask (0=no error)
  *   38       4    uint32  motor_error   Motor::Error bitmask (0=no error)
  *   42       4    uint32  encoder_error Encoder::Error bitmask (0=no error)
+ *   46       1    uint8   mag_agc       AS5047P AGC: 0=strong(close), 255=weak(far)
+ *   47       1    uint8   mag_flags     bit0=COMP_H(too close), bit1=COMP_L(too far)
  * ─────────────────────────────────────────────────────────────────────────── */
 typedef struct __attribute__((packed)) {
     float    pos_estimate;
@@ -57,7 +59,9 @@ typedef struct __attribute__((packed)) {
     uint32_t axis_error;
     uint32_t motor_error;
     uint32_t encoder_error;
-} HID_TelemetryPayload_t;          /* 46 bytes */
+    uint8_t  mag_agc;    /* AS5047P: 0=strong field, 255=weak field, ~128=optimal */
+    uint8_t  mag_flags;  /* bit0=COMP_H (too close), bit1=COMP_L (too far)        */
+} HID_TelemetryPayload_t;          /* 48 bytes */
 
 /* ── Command feature payload (8 bytes) ───────────────────────────────────────
  *   See protocol.h for cmd_id and param_id definitions.

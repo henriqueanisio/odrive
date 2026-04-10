@@ -527,6 +527,38 @@ void Encoder::decode_hall_samples() {
 
 bool Encoder::abs_spi_start_transaction() {
     if (mode_ & MODE_FLAG_ABS){
+
+        /* ── AS5047P diagnostic register interleaving (AMS mode only) ──────
+         * The AS5047P uses a pipelined SPI protocol: the response to
+         * command N arrives during command N+1.  Every ~800 cycles we
+         * inject a DIAAGC read (address 0x3FFD, cmd word 0x7FFD) so that
+         * the NEXT receive brings back diagnostic data instead of angle data.
+         *
+         * State machine (tracked across calls):
+         *   abs_spi_diag_cmd_sent_ = true  → previous tx was DIAAGC_CMD,
+         *                                    so set abs_spi_diag_rx_rdy_ and
+         *                                    restore tx = ANGLECOM for this cycle.
+         *   abs_spi_diag_rx_rdy_ = true   → current rx IS DIAAGC data; cb will
+         *                                    parse it instead of position.
+         * ──────────────────────────────────────────────────────────────────── */
+        if (mode_ == MODE_SPI_ABS_AMS) {
+            if (abs_spi_diag_cmd_sent_) {
+                /* Previous cycle sent DIAAGC_CMD; this cycle's RX = DIAAGC data. */
+                abs_spi_diag_rx_rdy_   = true;
+                abs_spi_diag_cmd_sent_ = false;
+                abs_spi_dma_tx_[0]     = 0xFFFFU;   /* back to normal angle reads */
+            } else {
+                abs_spi_diag_rx_rdy_ = false;
+                if (++abs_spi_diag_counter_ >= 800U) {
+                    abs_spi_diag_counter_  = 0U;
+                    abs_spi_dma_tx_[0]    = 0x7FFDU; /* DIAAGC read command         */
+                    abs_spi_diag_cmd_sent_ = true;
+                } else {
+                    abs_spi_dma_tx_[0] = 0xFFFFU;    /* normal ANGLECOM read        */
+                }
+            }
+        }
+
         if (Stm32SpiArbiter::acquire_task(&spi_task_)) {
             spi_task_.ncs_gpio = abs_spi_cs_gpio_;
             spi_task_.tx_buf = (uint8_t*)abs_spi_dma_tx_;
@@ -535,7 +567,7 @@ bool Encoder::abs_spi_start_transaction() {
             spi_task_.on_complete = [](void* ctx, bool success) { ((Encoder*)ctx)->abs_spi_cb(success); };
             spi_task_.on_complete_ctx = this;
             spi_task_.next = nullptr;
-            
+
             spi_arbiter_->transfer_async(&spi_task_);
         } else {
             return false;
@@ -569,7 +601,26 @@ void Encoder::abs_spi_cb(bool success) {
     switch (mode_) {
         case MODE_SPI_ABS_AMS: {
             uint16_t rawVal = abs_spi_dma_rx_[0];
-            // check if parity is correct (even) and error flag clear
+
+            /* ── Diagnostic register response ─────────────────────────────
+             * AS5047P DIAAGC (0x3FFD) bit layout [13:0] (after parity/EF):
+             *   [10]: COMP_H  (field too strong / magnet too close)
+             *   [9]:  COMP_L  (field too weak   / magnet too far  )
+             *   [8:1]: AGC[7:0] — 0 = max gain (weak field),
+             *                     255 = min gain (strong field).
+             *   Note: COMP_H/COMP_L polarity differs by datasheet version;
+             *         adjust masks below if indicator is inverted.
+             * ──────────────────────────────────────────────────────────── */
+            if (abs_spi_diag_rx_rdy_) {
+                abs_spi_diag_rx_rdy_ = false;
+                abs_agc_        = (uint8_t)((rawVal >> 1) & 0xFFU);
+                uint8_t comp_h  = (uint8_t)((rawVal >> 10) & 1U);
+                uint8_t comp_l  = (uint8_t)((rawVal >> 9)  & 1U);
+                abs_diag_flags_ = (uint8_t)((comp_h << 0) | (comp_l << 1));
+                goto done;  /* do not update position with diagnostic data */
+            }
+
+            /* ── Normal angle response ────────────────────────────────── */
             if (ams_parity(rawVal) || ((rawVal >> 14) & 1)) {
                 goto done;
             }
