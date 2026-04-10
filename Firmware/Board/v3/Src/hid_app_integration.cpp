@@ -97,11 +97,11 @@ static void app_enter_dfu(void)
     odrv.enter_dfu_mode();
 }
 
-/* ── app_apply_config ────────────────────────────────────────────────────────
+/* ── app_apply_config_core ───────────────────────────────────────────────────
  * Copies all g_config values to the live ODrive objects.
- * Called at startup (after flash load) and on CALL_APPLY_CONFIG.
+ * Does NOT check for encoder mode changes — safe to call at startup.
  * ─────────────────────────────────────────────────────────────────────────── */
-static void app_apply_config(void)
+static void app_apply_config_core(void)
 {
     Axis &ax = axis0();
 
@@ -136,10 +136,44 @@ static void app_apply_config(void)
     odrv.config_.enable_brake_resistor              = g_config.enable_brake_resistor != 0;
     odrv.config_.brake_resistance                   = g_config.brake_resistance;
 
-    /* Re-run encoder setup so mode_, SPI CLK polarity and CS pin take effect
-     * immediately (setup() only runs once at boot, so a mode change via GUI
-     * would otherwise be ignored until reboot). */
+    /* Re-run SPI setup so CLK polarity / CS pin / mode_ take effect.
+     * For incremental encoders this is a no-op (timer was initialised at boot). */
     ax.encoder_.setup();
+}
+
+/* ── app_apply_config ────────────────────────────────────────────────────────
+ * User-triggered apply (via CALL_APPLY_CONFIG from GUI).
+ * Applies config AND detects encoder mode changes that require a reboot.
+ *
+ * WHY TWO FUNCTIONS:
+ *   Encoder mode changes require the STM32 hardware timer to be reconfigured,
+ *   which only happens cleanly at boot.  We detect a mode change here and
+ *   issue a soft-reset so the timer is properly re-initialised.
+ *
+ *   This check MUST NOT run at startup (hid_app_init uses app_apply_config_core
+ *   instead) because at startup the ODrive live mode is always the default
+ *   (INCREMENTAL = 0) before any config is applied, which would falsely trigger
+ *   a reboot every time the board powers on with a non-incremental mode saved.
+ * ─────────────────────────────────────────────────────────────────────────── */
+static void app_apply_config(void)
+{
+    Axis &ax = axis0();
+
+    /* Snapshot current live mode BEFORE applying so we can detect a change. */
+    int32_t live_mode = static_cast<int32_t>(ax.encoder_.config_.mode);
+
+    app_apply_config_core();
+
+    if (live_mode != g_config.encoder_mode) {
+        /* Mode changed: persist to flash then reboot so the timer is
+         * re-initialised correctly for the new mode.
+         * clear_errors() after the flash erase suppresses TIMER_UPDATE_MISSED. */
+        flash_save_config();
+        odrv.clear_errors();
+        HAL_Delay(20);       /* allow USB ACK to reach host before reset */
+        NVIC_SystemReset();
+        /* never reached */
+    }
 }
 
 /* ── HID_ODrive_ProcessCommand — strong override ─────────────────────────────
@@ -207,8 +241,12 @@ extern "C" void hid_app_init(void)
         config_init();
     }
 
-    /* Apply loaded config to ODrive live objects immediately */
-    app_apply_config();
+    /* Apply loaded config to ODrive live objects.
+     * Use app_apply_config_core (no reboot check) because at this point the
+     * ODrive live encoder mode is still the default (INCREMENTAL = 0) regardless
+     * of what is saved in flash.  Comparing live vs. saved here would always
+     * detect a "change" for AMS/SPI modes and cause an infinite reboot loop. */
+    app_apply_config_core();
 
     static const ProtocolCallbacks_t cb = {
         .set_axis_state = app_set_axis_state,
