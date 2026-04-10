@@ -17,9 +17,17 @@ extern "C" void hid_send_telemetry(void);
 
 static void hid_task_fn(void*) {
     for (;;) {
-        hid_send_telemetry();
+        /* Process pending commands first (config response, save, etc.)
+           while the endpoint is guaranteed free from the previous cycle. */
         protocol_process_pending();
-        osDelay(10);
+
+        /* Small gap so the config response (if sent above) is transmitted
+           before telemetry occupies the endpoint again. */
+        osDelay(2);
+
+        hid_send_telemetry();
+
+        osDelay(8);  /* total cadence ~10 ms */
     }
 }
 
