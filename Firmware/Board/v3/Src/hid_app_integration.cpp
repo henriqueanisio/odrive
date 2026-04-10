@@ -105,6 +105,11 @@ static void app_apply_config(void)
     odrv.config_.dc_bus_overvoltage_trip_level      = g_config.vbus_overvoltage;
     odrv.config_.enable_brake_resistor              = g_config.enable_brake_resistor != 0;
     odrv.config_.brake_resistance                   = g_config.brake_resistance;
+
+    /* Re-run encoder setup so mode_, SPI CLK polarity and CS pin take effect
+     * immediately (setup() only runs once at boot, so a mode change via GUI
+     * would otherwise be ignored until reboot). */
+    ax.encoder_.setup();
 }
 
 /* ── HID_ODrive_ProcessCommand — strong override ─────────────────────────────
