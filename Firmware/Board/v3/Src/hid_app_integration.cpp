@@ -138,10 +138,18 @@ extern "C" void hid_send_telemetry(void)
     t.motor_error      = static_cast<uint8_t>(ax.motor_.error_   != 0);
     t.encoder_error    = static_cast<uint8_t>(ax.encoder_.error_ != 0);
 
-    /* Keep joystick alive in joy.cpl */
-    int16_t joy_x = static_cast<int16_t>(
-        ax.encoder_.pos_estimate_ * (32767.0f / 100.0f));
-    HID_Joystick_Send(joy_x);
+    /* Alternate joystick and telemetry sends to avoid HID_BUSY on the shared
+       interrupt IN endpoint. Telemetry every call (~10 ms); joystick every
+       10th call (~100 ms), well after the previous packet has been ACK'd. */
+    static uint8_t joy_divider = 0U;
+    if (++joy_divider >= 10U) {
+        joy_divider = 0U;
+        int16_t joy_x = static_cast<int16_t>(
+            ax.encoder_.pos_estimate_ * (32767.0f / 100.0f));
+        HID_Joystick_Send(joy_x);
+        /* yield so the joystick packet can be transmitted before telemetry */
+        osDelay(1);
+    }
 
     HID_ODrive_SendTelemetry(&t);
 }
