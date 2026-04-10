@@ -70,6 +70,10 @@ typedef enum {
 extern volatile PendingCall_t g_pending_call;
 extern volatile bool          g_pending_save;
 
+/* Deferred GET_CONFIG response — set by ISR, sent by protocol_process_pending() */
+extern volatile bool     g_pending_config_resp;
+extern volatile uint16_t g_pending_config_pid;
+
 /* ── Application callback table ─────────────────────────────────────────────── */
 typedef struct {
     void (*set_axis_state)(uint8_t state);

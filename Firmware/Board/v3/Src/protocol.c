@@ -6,6 +6,8 @@
 
 volatile PendingCall_t g_pending_call = PENDING_CALL_NONE;
 volatile bool          g_pending_save = false;
+volatile bool          g_pending_config_resp = false;
+volatile uint16_t      g_pending_config_pid  = 0U;
 
 static void _noop_set_state(uint8_t s) { (void)s; }
 static void _noop_set_pos  (float  p) { (void)p; }
@@ -64,19 +66,11 @@ void protocol_dispatch(const HID_Command_t *cmd)
             config_set(pid, val);
             break;
 
-        case HID_CMD_GET_CONFIG: {
-            float out = 0.0f;
-
-            if (config_get(pid, &out)) {
-                printf("GET OK ID=%d VALUE=%f\n", pid, (double)out);
-
-                protocol_send_config_response(pid, out);
-            } else {
-                printf("GET FAIL ID=%d\n", pid);
-            }
-
+        case HID_CMD_GET_CONFIG:
+            /* Cannot call USBD_HID_SendReport from USB ISR — defer to task */
+            g_pending_config_pid  = pid;
+            g_pending_config_resp = true;
             break;
-        }
 
         case HID_CMD_CALL: {
             uint16_t call_id = pid ? pid : (uint16_t)val;
@@ -144,6 +138,14 @@ void protocol_process_pending(void)
                 break;
             default:
                 break;
+        }
+    }
+
+    if (g_pending_config_resp) {
+        g_pending_config_resp = false;
+        float out = 0.0f;
+        if (config_get(g_pending_config_pid, &out)) {
+            protocol_send_config_response(g_pending_config_pid, out);
         }
     }
 
