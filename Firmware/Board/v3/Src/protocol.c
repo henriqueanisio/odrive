@@ -68,7 +68,7 @@ void protocol_dispatch(const HID_Command_t *cmd)
             float out = 0.0f;
 
             if (config_get(pid, &out)) {
-                printf("GET OK ID=%d VALUE=%f\n", pid, out);
+                printf("GET OK ID=%d VALUE=%f\n", pid, (double)out);
 
                 protocol_send_config_response(pid, out);
             } else {

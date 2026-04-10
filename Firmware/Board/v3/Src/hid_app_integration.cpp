@@ -93,7 +93,7 @@ static void app_apply_config(void)
     /* encoder_direction & offset are applied after calibration, not forced here */
 
     /* ── Controller ── */
-    ax.controller_.config_.control_mode             = static_cast<ControlMode>(g_config.control_mode);
+    ax.controller_.config_.control_mode             = static_cast<Controller::ControlMode>(g_config.control_mode);
     ax.controller_.config_.vel_limit                = g_config.vel_limit;
     ax.controller_.config_.pos_gain                 = g_config.pos_gain;
     ax.controller_.config_.vel_gain                 = g_config.vel_gain;
@@ -122,8 +122,8 @@ extern "C" void hid_send_telemetry(void)
 
     Axis &ax = axis0();
 
-    t.pos_estimate     = ax.encoder_.pos_estimate_;
-    t.vel_estimate     = ax.encoder_.vel_estimate_;
+    t.pos_estimate     = ax.encoder_.pos_estimate_.present().value_or(0.0f);
+    t.vel_estimate     = ax.encoder_.vel_estimate_.present().value_or(0.0f);
     t.vbus_voltage     = odrv.vbus_voltage_;
     t.current_lim      = ax.motor_.config_.current_lim;
     t.input_pos        = ax.controller_.input_pos_;
@@ -145,7 +145,7 @@ extern "C" void hid_send_telemetry(void)
     if (++joy_divider >= 10U) {
         joy_divider = 0U;
         int16_t joy_x = static_cast<int16_t>(
-            ax.encoder_.pos_estimate_ * (32767.0f / 100.0f));
+            ax.encoder_.pos_estimate_.present().value_or(0.0f) * (32767.0f / 100.0f));
         HID_Joystick_Send(joy_x);
         /* yield so the joystick packet can be transmitted before telemetry */
         osDelay(1);
