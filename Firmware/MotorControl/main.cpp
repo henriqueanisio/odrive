@@ -607,7 +607,7 @@ static void rtos_main(void*) {
 
     // Start HID telemetry task after ODrive is fully initialized
     hid_app_init();
-    osThreadDef(hidTask, hid_task_fn, osPriorityBelowNormal, 0, 512 / sizeof(StackType_t));
+    osThreadDef(hidTask, hid_task_fn, osPriorityBelowNormal, 0, 2048 / sizeof(StackType_t));
     osThreadCreate(osThread(hidTask), NULL);
 
     // Main thread finished starting everything and can delete itself now (yes this is legal).

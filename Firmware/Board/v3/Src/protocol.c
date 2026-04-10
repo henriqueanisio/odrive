@@ -116,9 +116,11 @@ void protocol_process_pending(void)
 
         switch (call) {
             case PENDING_CALL_MOTOR_CAL:
+                s_cb.apply_config();                        /* sync g_config → live objects */
                 s_cb.set_axis_state(4 /* AXIS_STATE_MOTOR_CALIBRATION */);
                 break;
             case PENDING_CALL_ENCODER_CAL:
+                s_cb.apply_config();                        /* sync g_config → live objects */
                 s_cb.set_axis_state(7 /* AXIS_STATE_ENCODER_OFFSET_CALIBRATION */);
                 break;
             case PENDING_CALL_ENCODER_INDEX:

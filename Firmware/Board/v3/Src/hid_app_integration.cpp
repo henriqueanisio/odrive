@@ -46,12 +46,9 @@ static void app_apply_config(void);
 /* ── Application callbacks ─────────────────────────────────────────────────── */
 static void app_set_axis_state(uint8_t state)
 {
-    printf("[HID] set_axis_state(%d) err=0x%lx motor_err=0x%lx\n",
-           state,
-           (unsigned long)axis0().error_,
-           (unsigned long)axis0().motor_.error_);
-    axis0().error_        = Axis::ERROR_NONE;
-    axis0().motor_.error_ = Motor::ERROR_NONE;
+    axis0().error_           = Axis::ERROR_NONE;
+    axis0().motor_.error_    = Motor::ERROR_NONE;
+    axis0().encoder_.error_  = Encoder::ERROR_NONE;
     axis0().requested_state_ = static_cast<Axis::AxisState>(state);
 }
 
