@@ -20,6 +20,7 @@ static ProtocolCallbacks_t s_cb = {
     .enter_dfu      = _noop_void,
     .apply_config   = _noop_void,
     .set_home       = _noop_void,
+    .save_config    = _noop_void,
 };
 
 void protocol_init(const ProtocolCallbacks_t *callbacks)
@@ -31,6 +32,7 @@ void protocol_init(const ProtocolCallbacks_t *callbacks)
         if (callbacks->enter_dfu)      s_cb.enter_dfu      = callbacks->enter_dfu;
         if (callbacks->apply_config)   s_cb.apply_config   = callbacks->apply_config;
         if (callbacks->set_home)       s_cb.set_home       = callbacks->set_home;
+        if (callbacks->save_config)    s_cb.save_config    = callbacks->save_config;
     }
 }
 
@@ -160,7 +162,7 @@ void protocol_process_pending(void)
 
     if (g_pending_save) {
         g_pending_save = false;
-        flash_save_config();
+        s_cb.save_config();
     }
 }
 

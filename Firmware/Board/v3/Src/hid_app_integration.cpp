@@ -60,6 +60,17 @@ static void app_set_input_pos(float pos)
     axis0().controller_.input_pos_ = pos + s_home_offset;
 }
 
+static void app_save_config(void)
+{
+    /* STM32F405 flash sector erase disables all interrupts for ~400-800 ms.
+     * The motor control timer (TIM1/TIM8) fires during this window and cannot
+     * be served, causing TIMER_UPDATE_MISSED / MOTOR_FAILED on the next cycle.
+     * Clearing errors after the erase completes makes the fault transparent
+     * to the user — the motor resumes normally once the ISR can run again. */
+    flash_save_config();
+    odrv.clear_errors();
+}
+
 static void app_set_home(void)
 {
     /* Capture current encoder position as the new zero reference.
@@ -194,6 +205,7 @@ extern "C" void hid_app_init(void)
         .enter_dfu      = app_enter_dfu,
         .apply_config   = app_apply_config,
         .set_home       = app_set_home,
+        .save_config    = app_save_config,
     };
     protocol_init(&cb);
 }

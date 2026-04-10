@@ -84,6 +84,7 @@ typedef struct {
     void (*enter_dfu)     (void);
     void (*apply_config)  (void);  /* copy g_config → ODrive live objects */
     void (*set_home)      (void);  /* capture current position as zero reference */
+    void (*save_config)   (void);  /* persist config to flash (handles post-erase errors) */
 } ProtocolCallbacks_t;
 
 /* ── Public API ──────────────────────────────────────────────────────────────── */
