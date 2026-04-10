@@ -10,6 +10,18 @@
 #include <communication/interface_uart.h>
 #include <communication/interface_i2c.h>
 #include <communication/interface_can.hpp>
+#include "../Board/v3/Src/protocol.h"
+
+extern "C" void hid_app_init(void);
+extern "C" void hid_send_telemetry(void);
+
+static void hid_task_fn(void*) {
+    for (;;) {
+        hid_send_telemetry();
+        protocol_process_pending();
+        osDelay(10);
+    }
+}
 
 osSemaphoreId sem_usb_irq;
 osMessageQId uart_event_queue;
@@ -584,6 +596,11 @@ static void rtos_main(void*) {
     }
 
     odrv.system_stats_.fully_booted = true;
+
+    // Start HID telemetry task after ODrive is fully initialized
+    hid_app_init();
+    osThreadDef(hidTask, hid_task_fn, osPriorityBelowNormal, 0, 512 / sizeof(StackType_t));
+    osThreadCreate(osThread(hidTask), NULL);
 
     // Main thread finished starting everything and can delete itself now (yes this is legal).
     vTaskDelete(defaultTaskHandle);
