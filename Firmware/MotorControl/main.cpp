@@ -11,11 +11,28 @@
 #include <communication/interface_i2c.h>
 #include <communication/interface_can.hpp>
 #include "../Board/v3/Src/protocol.h"
+#include "../Board/v3/Inc/tim.h"
 
 extern "C" void hid_app_init(void);
 extern "C" void hid_send_telemetry(void);
 
 static void hid_task_fn(void*) {
+    /* Wait for the ODrive axis state machine to finish its startup sequence,
+     * then force M0 encoder GPIO pins (PB4/PB5) back to TIM3 AF2 input mode.
+     * The ODrive initialisation loop may reconfigure these pins; doing this
+     * here (after a 1-second settle) overrides any such reconfiguration. */
+    osDelay(1000);
+    {
+        GPIO_InitTypeDef g = {};
+        g.Pin       = GPIO_PIN_4 | GPIO_PIN_5;
+        g.Mode      = GPIO_MODE_AF_PP;
+        g.Pull      = GPIO_PULLUP;
+        g.Speed     = GPIO_SPEED_FREQ_LOW;
+        g.Alternate = GPIO_AF2_TIM3;
+        HAL_GPIO_Init(GPIOB, &g);
+        HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+    }
+
     for (;;) {
         /* Process pending commands first (config response, save, etc.)
            while the endpoint is guaranteed free from the previous cycle. */
