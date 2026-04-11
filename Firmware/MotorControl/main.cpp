@@ -828,7 +828,7 @@ extern "C" int main(void) {
             } break;
             case ODriveIntf::GPIO_MODE_ENC0: {
                 GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-                GPIO_InitStruct.Pull = GPIO_NOPULL;
+                GPIO_InitStruct.Pull = GPIO_PULLUP;
                 GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
             } break;
             case ODriveIntf::GPIO_MODE_ENC1: {
