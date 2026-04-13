@@ -12,6 +12,7 @@
 #include "usbd_ctlreq.h"
 #include "ffb_pid.h"
 #include "hid_queue.h"
+#include "usbd_hid_if.h"
 
 static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
@@ -221,10 +222,6 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
             else if (intf == 2) {
                 len = MIN(sizeof(HID_VENDOR_ReportDesc), req->wLength);
                 USBD_CtlSendData(pdev, HID_VENDOR_ReportDesc, len);
-            }
-            else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
             } else if ((req->wValue >> 8) == HID_DESCRIPTOR_TYPE) {
 
                 uint8_t intf = req->wIndex & 0xFF;
