@@ -121,7 +121,7 @@ static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 
     /* Preparar OUT */
     USBD_LL_PrepareReceive(pdev, HID_FFB_EPOUT_ADDR,
-        ((USBD_HID_HandleTypeDef*)pdev->pClassData)->Report_buf,
+        ((USBD_HID_HandleTypeDef*)pdev->pClassData)->OutReportBuf,
         HID_EPOUT_SIZE);
 
     return (uint8_t)USBD_OK;
