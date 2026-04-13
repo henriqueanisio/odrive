@@ -144,6 +144,15 @@ bool config_set(uint16_t param_id, float value)
             if (value < 90.0f || value > 2160.0f) return false;
             g_config.steering_max_lock = value;                      return true;
 
+        /* ── Force Feedback (600–699) ── */
+        case CFG_FFB_MAX_TORQUE:
+            if (value < 0.1f || value > 30.0f) return false;
+            g_config.ffb_max_torque = value;                         return true;
+
+        case CFG_FFB_GAIN:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_gain = value;                               return true;
+
         default:
             return false;
     }
@@ -221,6 +230,12 @@ bool config_get(uint16_t param_id, float *value_out)
 
         case CFG_STEERING_MAX_LOCK:
             *value_out = g_config.steering_max_lock;                  return true;
+
+        case CFG_FFB_MAX_TORQUE:
+            *value_out = g_config.ffb_max_torque;                     return true;
+
+        case CFG_FFB_GAIN:
+            *value_out = g_config.ffb_gain;                           return true;
 
         default:
             return false;

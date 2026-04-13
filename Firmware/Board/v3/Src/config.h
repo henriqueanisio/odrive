@@ -57,6 +57,10 @@ extern "C" {
 /* Steering */
 #define CFG_STEERING_MAX_LOCK               510U  /* total degrees of wheel travel     */
 
+/* Force Feedback */
+#define CFG_FFB_MAX_TORQUE                  600U  /* Nm — peak output torque           */
+#define CFG_FFB_GAIN                        601U  /* 0.0–1.0 — global FFB scale        */
+
 /* ── Config struct ─────────────────────────────────────────────────────────── */
 typedef struct {
     /* Motor */
@@ -100,6 +104,10 @@ typedef struct {
 
     /* Steering */
     float   steering_max_lock;         /* total degrees of wheel travel (e.g. 900)  */
+
+    /* Force Feedback */
+    float   ffb_max_torque;            /* Nm peak — clamps all FFB output           */
+    float   ffb_gain;                  /* 0.0–1.0 global scale applied after effects */
 } ODriveConfig_t;
 
 /* Factory defaults */
@@ -132,6 +140,8 @@ typedef struct {
     .enable_brake_resistor         = 0,               \
     .brake_resistance              = 2.0f,            \
     .steering_max_lock             = 900.0f,          \
+    .ffb_max_torque                = 3.0f,            \
+    .ffb_gain                      = 1.0f,            \
 }
 
 extern ODriveConfig_t g_config;
