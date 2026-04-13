@@ -43,7 +43,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[] __ALIGN_END = {
     0x81, 0x02,        // Input
 
     0xC0
-}
+};
 
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
 uint8_t HID_Joystick_Send(int16_t value)
