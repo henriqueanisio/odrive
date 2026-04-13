@@ -146,11 +146,11 @@ uint8_t HID_Joystick_Send(int16_t value)
 {
     uint8_t report[3];
 
-    report[0] = HID_REPORT_ID_JOYSTICK;
+    report[0] = 0x01; // ID fixo
     report[1] = (uint8_t)(value & 0xFF);
     report[2] = (uint8_t)(value >> 8);
 
-    return hid_queue_push(report, sizeof(report));
+    return USBD_HID_SendReport(&hUsbDeviceFS, report, sizeof(report));
 }
 
 /* ── HID_ODrive_SendTelemetry ────────────────────────────────────────────── */
