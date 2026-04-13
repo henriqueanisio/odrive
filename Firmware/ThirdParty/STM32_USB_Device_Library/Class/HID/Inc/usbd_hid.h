@@ -37,6 +37,14 @@ extern "C" {
 #define HID_REQ_SET_REPORT          0x09U
 #define HID_REQ_GET_REPORT          0x01U
 
+#define HID_JOY_EPIN_ADDR     0x81
+#define HID_FFB_EPIN_ADDR     0x82
+#define HID_FFB_EPOUT_ADDR    0x02
+#define HID_VENDOR_EPIN_ADDR  0x83
+
+#define HID_EPIN_SIZE   64
+#define HID_EPOUT_SIZE  64
+
 /* TX state for preventing overlapping transfers */
 #define HID_IDLE                    0U
 #define HID_BUSY                    1U

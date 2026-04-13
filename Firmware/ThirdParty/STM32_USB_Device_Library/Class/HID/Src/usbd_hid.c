@@ -18,6 +18,7 @@ static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req);
 static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev);
 static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum);
+static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum);
 static uint8_t *USBD_HID_GetFSCfgDesc(uint16_t *length);
 static uint8_t *USBD_HID_GetHSCfgDesc(uint16_t *length);
 static uint8_t *USBD_HID_GetOtherSpeedCfgDesc(uint16_t *length);
@@ -33,7 +34,7 @@ USBD_ClassTypeDef USBD_HID = {
     NULL,               /* EP0_TxSent */
     USBD_HID_EP0_RxReady, /* EP0_RxReady — handles incoming Feature Reports */
     USBD_HID_DataIn,
-    NULL,               /* DataOut */
+    USBD_HID_DataOut,    /* DataOut */
     NULL,               /* SOF */
     NULL,               /* IsoINIncomplete */
     NULL,               /* IsoOUTIncomplete */
@@ -44,47 +45,38 @@ USBD_ClassTypeDef USBD_HID = {
 };
 
 /* FS/HS/OtherSpeed config descriptor — identical for this device */
-__ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN_END = {
-    /* ---------- Configuration Descriptor ---------- */
-    0x09,                          /* bLength */
-    USB_DESC_TYPE_CONFIGURATION,   /* bDescriptorType */
-    USB_HID_CONFIG_DESC_SIZ, 0x00, /* wTotalLength */
-    0x01,                          /* bNumInterfaces */
-    0x01,                          /* bConfigurationValue */
-    0x00,                          /* iConfiguration */
-    0xC0,                          /* bmAttributes: self-powered */
-    0x32,                          /* bMaxPower: 100 mA */
+__ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[] __ALIGN_END =
+{
+    /* CONFIG */
+    0x09, 0x02, LOBYTE(sizeof(USBD_HID_CfgDesc)), HIBYTE(sizeof(USBD_HID_CfgDesc)), 0x03, 0x01, 0x00, 0xA0, 0x32,
 
-    /* ---------- Interface Descriptor ---------- */
-    0x09,                          /* bLength */
-    USB_DESC_TYPE_INTERFACE,       /* bDescriptorType */
-    0x00,                          /* bInterfaceNumber */
-    0x00,                          /* bAlternateSetting */
-    0x01,                          /* bNumEndpoints */
-    0x03,                          /* bInterfaceClass: HID */
-    0x00,                          /* bInterfaceSubClass: no boot */
-    0x00,                          /* bInterfaceProtocol: none */
-    0x00,                          /* iInterface */
+    /* ───────── Interface 0: Joystick ───────── */
+    0x09, 0x04, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00,
 
-    /* ---------- HID Descriptor ---------- */
-    0x09,                          /* bLength */
-    HID_DESCRIPTOR_TYPE,           /* bDescriptorType: HID (0x21) */
-    0x11, 0x01,                    /* bcdHID: 1.11 */
-    0x00,                          /* bCountryCode */
-    0x01,                          /* bNumDescriptors */
-    HID_REPORT_DESC_TYPE,          /* bDescriptorType: Report (0x22) */
-    /* wDescriptorLength — must be 16-bit LE; cannot use the macro directly
-     * in a uint8_t array because values > 255 would be truncated silently. */
-    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFFU),   /* low  byte = 0xD6 (470) */
-    (uint8_t)(HID_REPORT_DESC_SIZE >> 8U),      /* high byte = 0x01 (470) */
+    0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
+    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF),
+    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
 
-    /* ---------- Endpoint Descriptor ---------- */
-    0x07,                          /* bLength */
-    USB_DESC_TYPE_ENDPOINT,        /* bDescriptorType */
-    HID_EPIN_ADDR,                 /* bEndpointAddress: EP1 IN */
-    USBD_EP_TYPE_INTR,             /* bmAttributes: Interrupt */
-    HID_EPIN_SIZE, 0x00,           /* wMaxPacketSize */
-    HID_FS_BINTERVAL,              /* bInterval */
+    0x07, 0x05, HID_JOY_EPIN_ADDR, 0x03, 0x40, 0x00, 0x01,
+
+    /* ───────── Interface 1: FFB ───────── */
+    0x09, 0x04, 0x01, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00,
+
+    0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
+    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF),
+    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
+
+    0x07, 0x05, HID_FFB_EPIN_ADDR, 0x03, 0x40, 0x00, 0x01,
+    0x07, 0x05, HID_FFB_EPOUT_ADDR, 0x03, 0x40, 0x00, 0x01,
+
+    /* ───────── Interface 2: Vendor ───────── */
+    0x09, 0x04, 0x02, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00,
+
+    0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
+    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF),
+    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
+
+    0x07, 0x05, HID_VENDOR_EPIN_ADDR, 0x03, 0x40, 0x00, 0x01,
 };
 
 /* Device qualifier (required for USB 2.0 compliance, not really used at FS) */
@@ -116,6 +108,22 @@ static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
     pdev->ep_in[HID_EPIN_ADDR & 0xFU].is_used = 1U;
 
     hhid->state = HID_IDLE;
+
+    /* Interface 0 - Joystick */
+    USBD_LL_OpenEP(pdev, HID_JOY_EPIN_ADDR, USBD_EP_TYPE_INTR, HID_EPIN_SIZE);
+
+    /* Interface 1 - FFB */
+    USBD_LL_OpenEP(pdev, HID_FFB_EPIN_ADDR, USBD_EP_TYPE_INTR, HID_EPIN_SIZE);
+    USBD_LL_OpenEP(pdev, HID_FFB_EPOUT_ADDR, USBD_EP_TYPE_INTR, HID_EPOUT_SIZE);
+
+    /* Interface 2 - Vendor */
+    USBD_LL_OpenEP(pdev, HID_VENDOR_EPIN_ADDR, USBD_EP_TYPE_INTR, HID_EPIN_SIZE);
+
+    /* Preparar OUT */
+    USBD_LL_PrepareReceive(pdev, HID_FFB_EPOUT_ADDR,
+        ((USBD_HID_HandleTypeDef*)pdev->pClassData)->Report_buf,
+        HID_EPOUT_SIZE);
+
     return (uint8_t)USBD_OK;
 }
 
@@ -291,6 +299,25 @@ static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
     hid_queue_process();
     return (uint8_t)USBD_OK;
+}
+
+static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
+{
+    if (epnum != (HID_FFB_EPOUT_ADDR & 0x7F))
+        return USBD_OK;
+
+    USBD_HID_HandleTypeDef *hhid =
+        (USBD_HID_HandleTypeDef*)pdev->pClassData;
+
+    uint8_t *buf = hhid->Report_buf;
+
+    uint8_t report_id = buf[0];
+
+    ffb_process_report(report_id, &buf[1], HID_EPOUT_SIZE - 1);
+
+    USBD_LL_PrepareReceive(pdev, HID_FFB_EPOUT_ADDR, buf, HID_EPOUT_SIZE);
+
+    return USBD_OK;
 }
 
 static uint8_t *USBD_HID_GetFSCfgDesc(uint16_t *length)
