@@ -255,7 +255,7 @@ extern "C" void hid_send_telemetry(void)
 
     /* ───────────── TELEMETRIA ───────────── */
 
-    // HID_ODrive_SendTelemetry(&t);
+    HID_ODrive_SendTelemetry(&t);
 }
 
 /* ── Soft endstop helper ─────────────────────────────────────────────────────
