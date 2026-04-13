@@ -1,6 +1,7 @@
 #include "usbd_hid_if.h"
 #include "ffb_pid.h"
 #include <string.h>
+#include "hid_queue.h"
 
 /* ── Combined HID Report Descriptor ──────────────────────────────────────────
  *
