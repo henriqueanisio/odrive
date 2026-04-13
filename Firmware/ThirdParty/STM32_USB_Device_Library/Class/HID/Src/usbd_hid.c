@@ -10,6 +10,7 @@
 
 #include "usbd_hid.h"
 #include "usbd_ctlreq.h"
+#include "ffb_pid.h"
 
 static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
@@ -152,10 +153,28 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
             USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
             break;
         case HID_REQ_SET_REPORT:
-            /* Feature Report from host (e.g. command payload) */
+            /* Feature Report from host (command or PID FFB report) */
             USBD_CtlPrepareRx(pdev, hhid->FeatureBuf,
                               MIN(req->wLength, HID_FEATURE_REPORT_BUF_SIZE));
             break;
+        case HID_REQ_GET_REPORT: {
+            /* PID Block Load (0x0F) and PID Pool (0x10) are read by DirectInput */
+            static uint8_t pid_resp[8];
+            uint8_t report_id = (uint8_t)(req->wValue & 0xFFU);
+            uint8_t resp_len  = 0U;
+            if (report_id == FFB_REPORT_PID_BLOCK_LOAD) {
+                resp_len = ffb_get_block_load_report(pid_resp, sizeof(pid_resp));
+            } else if (report_id == FFB_REPORT_PID_POOL) {
+                resp_len = ffb_get_pool_report(pid_resp, sizeof(pid_resp));
+            }
+            if (resp_len > 0U) {
+                USBD_CtlSendData(pdev, pid_resp, MIN(resp_len, req->wLength));
+            } else {
+                USBD_CtlError(pdev, req);
+                ret = USBD_FAIL;
+            }
+            break;
+        }
         default:
             USBD_CtlError(pdev, req);
             ret = USBD_FAIL;
@@ -247,8 +266,16 @@ static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
     USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
     /* FeatureBuf[0] = Report ID, FeatureBuf[1..] = payload */
-    if (hhid->FeatureBuf[0] == 0x03U) {   /* HID_REPORT_ID_COMMAND */
+    uint8_t report_id = hhid->FeatureBuf[0];
+
+    if (report_id == 0x03U) {
+        /* Vendor command report → existing protocol handler */
         HID_ODrive_ProcessCommand(&hhid->FeatureBuf[1]);
+    } else if (report_id >= FFB_REPORT_SET_EFFECT &&
+               report_id <= FFB_REPORT_DEVICE_GAIN) {
+        /* HID PID FFB reports → force feedback state machine */
+        uint16_t payload_len = (uint16_t)(HID_FEATURE_REPORT_BUF_SIZE - 1U);
+        ffb_process_report(report_id, &hhid->FeatureBuf[1], payload_len);
     }
     return (uint8_t)USBD_OK;
 }

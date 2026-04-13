@@ -238,6 +238,7 @@ board_v3 = {
     include = {stm32f4xx_hal_pkg},
     include_dirs = {
         'Inc',
+        'Src',
         '../../ThirdParty/FreeRTOS/Source/portable/GCC/ARM_CM4F',
     },
     code_files = {
@@ -259,6 +260,7 @@ board_v3 = {
         'Src/protocol.c',
         'Src/flash_storage.c',
         'Src/config.c',
+        'Src/ffb_pid.c',
         'Src/adc.c',
         'Src/stm32f4xx_hal_msp.c',
         'Src/usbd_desc.c',

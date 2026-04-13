@@ -65,7 +65,7 @@ typedef struct __attribute__((packed)) {
     uint16_t sample_period;        /* ms                                        */
     uint8_t  gain;                 /* 0–255                                     */
     uint8_t  trigger_button;       /* 0 = no trigger                            */
-} FFB_SetEffect_t;                 /* 11 bytes                                  */
+} FFB_SetEffect_t;                 /* 10 bytes                                  */
 
 /* Report 0x07 — Set Condition (13 bytes) */
 typedef struct __attribute__((packed)) {
@@ -76,7 +76,7 @@ typedef struct __attribute__((packed)) {
     int16_t  negative_coefficient; /* 0..10000                                  */
     uint16_t positive_saturation;  /* 0..10000                                  */
     uint16_t dead_band;            /* 0..10000  (half-width, centred on cp_offset) */
-} FFB_SetCondition_t;              /* 13 bytes                                  */
+} FFB_SetCondition_t;              /* 12 bytes                                  */
 
 /* Report 0x08 — Set Constant Force (3 bytes) */
 typedef struct __attribute__((packed)) {

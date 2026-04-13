@@ -23,8 +23,8 @@ extern "C" {
 #define USB_HID_CONFIG_DESC_SIZ     34U
 #define USB_HID_DESC_SIZ            9U
 
-/* Combined descriptor: joystick(23) + vendor(53) = 76 bytes */
-#define HID_REPORT_DESC_SIZE        76U
+/* Joystick+PID(417) + vendor(53) = 470 bytes — see usbd_hid_if.c for exact count */
+#define HID_REPORT_DESC_SIZE        470U
 
 #define HID_DESCRIPTOR_TYPE         0x21U
 #define HID_REPORT_DESC_TYPE        0x22U
@@ -42,8 +42,8 @@ extern "C" {
 #define HID_BUSY                    1U
 
 /* Buffer for Feature Reports received via SET_REPORT (host → device).
- * Must be >= 1 (report_id) + HID_COMMAND_PAYLOAD_SIZE (8) = 9 bytes.        */
-#define HID_FEATURE_REPORT_BUF_SIZE  10U
+ * Largest PID report: Set Condition = 1(id)+12(payload) = 13 bytes.          */
+#define HID_FEATURE_REPORT_BUF_SIZE  16U
 
 typedef struct {
     uint32_t Protocol;

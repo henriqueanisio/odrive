@@ -15,6 +15,7 @@
 
 extern "C" void hid_app_init(void);
 extern "C" void hid_send_telemetry(void);
+extern "C" void hid_apply_ffb(void);
 
 static void hid_task_fn(void*) {
     /* M0 encoder remapped to TIM2 on PA0/PA1 (GPIO1/GPIO2 header pins).
@@ -25,6 +26,10 @@ static void hid_task_fn(void*) {
         /* Process pending commands first (config response, save, etc.)
            while the endpoint is guaranteed free from the previous cycle. */
         protocol_process_pending();
+
+        /* Apply FFB torque — must run every cycle while in closed loop.
+         * Reads encoder pos/vel and writes controller_.input_torque_.    */
+        hid_apply_ffb();
 
         /* Small gap so the config response (if sent above) is transmitted
            before telemetry occupies the endpoint again. */

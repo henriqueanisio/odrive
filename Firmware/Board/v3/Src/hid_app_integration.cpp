@@ -34,7 +34,10 @@
 #include "protocol.h"
 #include "flash_storage.h"
 #include "usbd_hid_if.h"
+#include "ffb_pid.h"
+#include "usb_device.h"          /* hUsbDeviceFS — for USB state check        */
 #include <MotorControl/odrive_main.h>   /* odrv, Axis */
+#include <MotorControl/controller.hpp>  /* Controller::ControlMode, InputMode  */
 #include <string.h>
 
 /* ── Convenience accessor ───────────────────────────────────────────────────── */
@@ -237,6 +240,14 @@ extern "C" void hid_send_telemetry(void)
     t.mag_agc          = ax.encoder_.abs_agc_;
     t.mag_flags        = ax.encoder_.abs_diag_flags_;
 
+    /* PID State report — sent every call so DirectInput sees actuator status */
+    {
+        uint8_t pid_state[2];
+        pid_state[0] = FFB_REPORT_PID_STATE;
+        pid_state[1] = (uint8_t)(ffb_actuators_enabled() ? 0x01U : 0x00U);
+        USBD_HID_SendReport(&hUsbDeviceFS, pid_state, sizeof(pid_state));
+    }
+
     /* Alternate joystick and telemetry sends to avoid HID_BUSY on the shared
        interrupt IN endpoint. Telemetry every call (~10 ms); joystick every
        10th call (~100 ms), well after the previous packet has been ACK'd. */
@@ -259,12 +270,94 @@ extern "C" void hid_send_telemetry(void)
     HID_ODrive_SendTelemetry(&t);
 }
 
+/* ── Soft endstop helper ─────────────────────────────────────────────────────
+ * Fades out torque that would push further into the steering lock zone and
+ * applies a small counterforce when at or past the hard limit.
+ * pos_turns is relative to home (+ = right, − = left).
+ * ─────────────────────────────────────────────────────────────────────────── */
+static float apply_endstops(float torque, float pos_turns)
+{
+    float limit = g_config.steering_max_lock / 720.0f;  /* half-range in turns */
+    float zone  = limit * 0.08f;   /* fade zone = 8% of half-range             */
+    float inner = limit - zone;
+
+    if (pos_turns > inner) {
+        /* Right endstop zone: fade out positive torque */
+        float t = (pos_turns - inner) / zone;
+        if (t > 1.0f) t = 1.0f;
+        if (torque > 0.0f) torque *= (1.0f - t);
+        /* Hard limit: push back toward centre */
+        if (pos_turns >= limit) torque = -g_config.ffb_max_torque * 0.3f;
+    } else if (pos_turns < -inner) {
+        /* Left endstop zone: fade out negative torque */
+        float t = (-pos_turns - inner) / zone;
+        if (t > 1.0f) t = 1.0f;
+        if (torque < 0.0f) torque *= (1.0f - t);
+        if (pos_turns <= -limit) torque = g_config.ffb_max_torque * 0.3f;
+    }
+    return torque;
+}
+
+/* ── hid_apply_ffb ───────────────────────────────────────────────────────────
+ * Called every ~10 ms from hid_task_fn.
+ * When FFB actuators are enabled:
+ *   - switches the controller to TORQUE_CONTROL / PASSTHROUGH
+ *   - computes torque from active PID effects
+ *   - applies soft endstops
+ *   - writes input_torque_ to the ODrive controller
+ * When actuators are disabled or USB disconnected: zeroes torque and restores
+ * the configured control mode.
+ * ─────────────────────────────────────────────────────────────────────────── */
+extern "C" void hid_apply_ffb(void)
+{
+    Axis &ax = axis0();
+
+    /* Only operate in closed loop — motor handles other states itself */
+    if (ax.current_state_ != Axis::AXIS_STATE_CLOSED_LOOP_CONTROL) return;
+
+    /* Safety: zero torque if USB disconnected */
+    if (hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED) {
+        ax.controller_.input_torque_ = 0.0f;
+        return;
+    }
+
+    if (ffb_actuators_enabled()) {
+        /* Switch to torque control on first FFB enable */
+        if (ax.controller_.config_.control_mode !=
+                Controller::CONTROL_MODE_TORQUE_CONTROL) {
+            ax.controller_.config_.control_mode  = Controller::CONTROL_MODE_TORQUE_CONTROL;
+            ax.controller_.config_.input_mode    = Controller::INPUT_MODE_PASSTHROUGH;
+            ax.controller_.input_torque_         = 0.0f;
+        }
+
+        float pos = ax.encoder_.pos_estimate_.present().value_or(0.0f)
+                    - s_home_offset;
+        float vel = ax.encoder_.vel_estimate_.present().value_or(0.0f);
+
+        float torque = ffb_compute_torque(pos, vel);
+        torque       = apply_endstops(torque, pos);
+
+        ax.controller_.input_torque_ = torque;
+    } else {
+        /* FFB disabled — restore configured mode and zero torque */
+        if (ax.controller_.config_.control_mode ==
+                Controller::CONTROL_MODE_TORQUE_CONTROL) {
+            ax.controller_.config_.control_mode =
+                static_cast<Controller::ControlMode>(g_config.control_mode);
+            ax.controller_.input_torque_ = 0.0f;
+        }
+    }
+}
+
 /* ── hid_app_init ────────────────────────────────────────────────────────────── */
 extern "C" void hid_app_init(void)
 {
     /* M0 encoder remapped to TIM2 on PA0/PA1 (GPIO1/GPIO2 header pins).
      * PA0/PA1 are configured as ENC0 (TIM2_CH1/CH2, AF1) by the ODrive GPIO
      * init loop via DEFAULT_GPIO_MODES — no manual override needed here. */
+
+    /* Initialise FFB state machine (zeroes all effects, disables actuators) */
+    ffb_init();
 
     /* Load config from flash; fall back to factory defaults */
     if (!flash_load_config()) {
