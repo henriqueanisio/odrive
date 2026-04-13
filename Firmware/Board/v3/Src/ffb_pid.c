@@ -2,6 +2,8 @@
 #include "config.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
+#include <math.h>
+
 
 /* ── Internal effect state ────────────────────────────────────────────────── */
 typedef struct {
