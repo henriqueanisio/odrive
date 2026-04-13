@@ -44,7 +44,9 @@ void hid_queue_process(void)
     USBD_HID_HandleTypeDef *hhid =
         (USBD_HID_HandleTypeDef*)hUsbDeviceFS.pClassData;
 
-    if (!hhid || hhid->state != HID_IDLE) return;
+    if (!hhid) return;
+
+    if (hhid->state == HID_BUSY) return;
 
     USBD_HID_SendReport(&hUsbDeviceFS,
         queue[tail].data,
