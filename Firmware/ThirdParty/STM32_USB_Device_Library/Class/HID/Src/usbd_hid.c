@@ -147,135 +147,143 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
     USBD_StatusTypeDef ret = USBD_OK;
 
     switch (req->bmRequest & USB_REQ_TYPE_MASK) {
-    case USB_REQ_TYPE_CLASS:
-        switch (req->bRequest) {
-        case HID_REQ_SET_PROTOCOL:
-            hhid->Protocol = (uint8_t)(req->wValue);
-            break;
-        case HID_REQ_GET_PROTOCOL:
-            USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
-            break;
-        case HID_REQ_SET_IDLE:
-            hhid->IdleState = (uint8_t)(req->wValue >> 8);
-            break;
-        case HID_REQ_GET_IDLE:
-            USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
-            break;
-        case HID_REQ_SET_REPORT:
-            /* Feature Report from host (command or PID FFB report) */
-            USBD_CtlPrepareRx(pdev, hhid->FeatureBuf,
-                              MIN(req->wLength, HID_FEATURE_REPORT_BUF_SIZE));
-            break;
-        case HID_REQ_GET_REPORT: {
-            /* PID Block Load (0x0F) and PID Pool (0x10) are read by DirectInput */
-            static uint8_t pid_resp[8];
-            uint8_t report_id = (uint8_t)(req->wValue & 0xFFU);
-            uint8_t resp_len  = 0U;
-            if (report_id == FFB_REPORT_PID_BLOCK_LOAD) {
-                resp_len = ffb_get_block_load_report(pid_resp, sizeof(pid_resp));
-            } else if (report_id == FFB_REPORT_PID_POOL) {
-                resp_len = ffb_get_pool_report(pid_resp, sizeof(pid_resp));
+        case USB_REQ_TYPE_CLASS:
+            switch (req->bRequest) {
+            case HID_REQ_SET_PROTOCOL:
+                hhid->Protocol = (uint8_t)(req->wValue);
+                break;
+            case HID_REQ_GET_PROTOCOL:
+                USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
+                break;
+            case HID_REQ_SET_IDLE:
+                hhid->IdleState = (uint8_t)(req->wValue >> 8);
+                break;
+            case HID_REQ_GET_IDLE:
+                USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
+                break;
+            case HID_REQ_SET_REPORT:
+                /* Feature Report from host (command or PID FFB report) */
+                USBD_CtlPrepareRx(pdev, hhid->FeatureBuf,
+                                MIN(req->wLength, HID_FEATURE_REPORT_BUF_SIZE));
+                break;
+            case HID_REQ_GET_REPORT: {
+                /* PID Block Load (0x0F) and PID Pool (0x10) are read by DirectInput */
+                static uint8_t pid_resp[8];
+                uint8_t report_id = (uint8_t)(req->wValue & 0xFFU);
+                uint8_t resp_len  = 0U;
+                if (report_id == FFB_REPORT_PID_BLOCK_LOAD) {
+                    resp_len = ffb_get_block_load_report(pid_resp, sizeof(pid_resp));
+                } else if (report_id == FFB_REPORT_PID_POOL) {
+                    resp_len = ffb_get_pool_report(pid_resp, sizeof(pid_resp));
+                }
+                if (resp_len > 0U) {
+                    USBD_CtlSendData(pdev, pid_resp, MIN(resp_len, req->wLength));
+                } else {
+                    USBD_CtlError(pdev, req);
+                    ret = USBD_FAIL;
+                }
+                break;
             }
-            if (resp_len > 0U) {
-                USBD_CtlSendData(pdev, pid_resp, MIN(resp_len, req->wLength));
-            } else {
+            default:
                 USBD_CtlError(pdev, req);
                 ret = USBD_FAIL;
-            }
-            break;
-        }
-        default:
-            USBD_CtlError(pdev, req);
-            ret = USBD_FAIL;
-            break;
-        }
-        break;
-
-    case USB_REQ_TYPE_STANDARD:
-        switch (req->bRequest) {
-        case USB_REQ_GET_STATUS:
-            if (pdev->dev_state == USBD_STATE_CONFIGURED) {
-                USBD_CtlSendData(pdev, (uint8_t *)&status_info, 2U);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
+                break;
             }
             break;
 
-        case USB_REQ_GET_DESCRIPTOR:
-            if ((req->wValue >> 8) == HID_REPORT_DESC_TYPE) {
-
-            uint8_t intf = req->wIndex & 0xFF;
-
-            if (intf == 0) {
-                len = MIN(sizeof(HID_JOY_ReportDesc), req->wLength);
-                USBD_CtlSendData(pdev, HID_JOY_ReportDesc, len);
-            }
-            else if (intf == 1) {
-                len = MIN(sizeof(HID_FFB_ReportDesc), req->wLength);
-                USBD_CtlSendData(pdev, HID_FFB_ReportDesc, len);
-            }
-            else if (intf == 2) {
-                len = MIN(sizeof(HID_VENDOR_ReportDesc), req->wLength);
-                USBD_CtlSendData(pdev, HID_VENDOR_ReportDesc, len);
-            } else if ((req->wValue >> 8) == HID_DESCRIPTOR_TYPE) {
-
-                uint8_t intf = req->wIndex & 0xFF;
-
-                if (intf == 0) {
-                    pbuf = &USBD_HID_CfgDesc[18];   // joystick HID desc
+        case USB_REQ_TYPE_STANDARD:
+            switch (req->bRequest) {
+            case USB_REQ_GET_STATUS:
+                if (pdev->dev_state == USBD_STATE_CONFIGURED) {
+                    USBD_CtlSendData(pdev, (uint8_t *)&status_info, 2U);
+                } else {
+                    USBD_CtlError(pdev, req);
+                    ret = USBD_FAIL;
                 }
-                else if (intf == 1) {
-                    pbuf = &USBD_HID_CfgDesc[34];   // ⚠ ajustar offset real
+                break;
+
+            case USB_REQ_GET_DESCRIPTOR:
+                if ((req->wValue >> 8) == HID_REPORT_DESC_TYPE) {
+
+                    uint8_t intf = req->wIndex & 0xFF;
+
+                    if (intf == 0) {
+                        len = MIN(sizeof(HID_JOY_ReportDesc), req->wLength);
+                        USBD_CtlSendData(pdev, HID_JOY_ReportDesc, len);
+                    }
+                    else if (intf == 1) {
+                        len = MIN(sizeof(HID_FFB_ReportDesc), req->wLength);
+                        USBD_CtlSendData(pdev, HID_FFB_ReportDesc, len);
+                    }
+                    else if (intf == 2) {
+                        len = MIN(sizeof(HID_VENDOR_ReportDesc), req->wLength);
+                        USBD_CtlSendData(pdev, HID_VENDOR_ReportDesc, len);
+                    }
+                    else {
+                        USBD_CtlError(pdev, req);
+                        ret = USBD_FAIL;
+                    }
                 }
-                else if (intf == 2) {
-                    pbuf = &USBD_HID_CfgDesc[59];   // ⚠ ajustar offset real
+                else if ((req->wValue >> 8) == HID_DESCRIPTOR_TYPE) {
+
+                    uint8_t intf = req->wIndex & 0xFF;
+
+                    if (intf == 0) {
+                        pbuf = &USBD_HID_CfgDesc[18];
+                    }
+                    else if (intf == 1) {
+                        pbuf = &USBD_HID_CfgDesc[34];
+                    }
+                    else if (intf == 2) {
+                        pbuf = &USBD_HID_CfgDesc[59];
+                    }
+                    else {
+                        USBD_CtlError(pdev, req);
+                        return USBD_FAIL;
+                    }
+
+                    len = MIN(USB_HID_DESC_SIZ, req->wLength);
+                    USBD_CtlSendData(pdev, pbuf, len);
                 }
                 else {
                     USBD_CtlError(pdev, req);
-                    return USBD_FAIL;
+                    ret = USBD_FAIL;
                 }
 
-                len = MIN(USB_HID_DESC_SIZ, req->wLength);
-                USBD_CtlSendData(pdev, pbuf, len);
-            } else {
+                break;
+
+            case USB_REQ_GET_INTERFACE:
+                if (pdev->dev_state == USBD_STATE_CONFIGURED) {
+                    USBD_CtlSendData(pdev, (uint8_t *)&hhid->AltSetting, 1U);
+                } else {
+                    USBD_CtlError(pdev, req);
+                    ret = USBD_FAIL;
+                }
+                break;
+
+            case USB_REQ_SET_INTERFACE:
+                if (pdev->dev_state == USBD_STATE_CONFIGURED) {
+                    hhid->AltSetting = (uint8_t)(req->wValue);
+                } else {
+                    USBD_CtlError(pdev, req);
+                    ret = USBD_FAIL;
+                }
+                break;
+
+            case USB_REQ_CLEAR_FEATURE:
+                break;
+
+            default:
                 USBD_CtlError(pdev, req);
                 ret = USBD_FAIL;
+                break;
             }
             break;
-
-        case USB_REQ_GET_INTERFACE:
-            if (pdev->dev_state == USBD_STATE_CONFIGURED) {
-                USBD_CtlSendData(pdev, (uint8_t *)&hhid->AltSetting, 1U);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
-            }
-            break;
-
-        case USB_REQ_SET_INTERFACE:
-            if (pdev->dev_state == USBD_STATE_CONFIGURED) {
-                hhid->AltSetting = (uint8_t)(req->wValue);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
-            }
-            break;
-
-        case USB_REQ_CLEAR_FEATURE:
-            break;
-
+            
         default:
             USBD_CtlError(pdev, req);
             ret = USBD_FAIL;
             break;
-        }
-        break;
-
-    default:
-        USBD_CtlError(pdev, req);
-        ret = USBD_FAIL;
-        break;
     }
 
     return (uint8_t)ret;
