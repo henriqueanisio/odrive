@@ -29,11 +29,9 @@
  * compiler will error ("excess elements in array initializer").
  * If smaller, the tail is zero-filled and the USB host may reject the descriptor.
  * Verified count: 470 bytes (417 Joystick+PID + 53 Vendor). */
-__ALIGN_BEGIN uint8_t HID_ReportDesc[] __ALIGN_END = {
+__ALIGN_BEGIN uint8_t HID_JOY_ReportDesc[] __ALIGN_END = {
 
-/* ========================= */
-/* JOYSTICK (Application 1) */
-/* ========================= */
+/* Joystick */
 0x05, 0x01,
 0x09, 0x04,
 0xA1, 0x01,
@@ -46,11 +44,10 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[] __ALIGN_END = {
   0x95, 0x01,
   0x81, 0x02,
 
-0xC0,
+0xC0
+};
+__ALIGN_BEGIN uint8_t HID_FFB_ReportDesc[] __ALIGN_END = {
 
-/* ========================= */
-/* PID (Application 2) */
-/* ========================= */
 0x05, 0x0F,
 0x09, 0x92,
 0xA1, 0x01,
@@ -118,21 +115,22 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[] __ALIGN_END = {
     0x81, 0x03,
   0xC0,
 
-0xC0,
+0xC0
+};
+__ALIGN_BEGIN uint8_t HID_VENDOR_ReportDesc[] __ALIGN_END = {
 
-/* ========================= */
-/* VENDOR (Application 3) */
-/* ========================= */
 0x06, 0x00, 0xFF,
 0x09, 0x01,
 0xA1, 0x01,
 
+  /* Telemetry */
   0x85, 0x02,
   0x09, 0x02,
   0x75, 0x08,
   0x95, 0x30,
   0x81, 0x02,
 
+  /* Command */
   0x85, 0x03,
   0x09, 0x03,
   0x75, 0x08,

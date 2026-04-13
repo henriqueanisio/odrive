@@ -48,14 +48,15 @@ USBD_ClassTypeDef USBD_HID = {
 __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[] __ALIGN_END =
 {
     /* CONFIG */
-    0x09, 0x02, 0x5B, 0x00, 0x03, 0x01, 0x00, 0xA0, 0x32,
+    0x09, 0x02, LOBYTE(sizeof(USBD_HID_CfgDesc)),
+HIBYTE(sizeof(USBD_HID_CfgDesc)), 0x03, 0x01, 0x00, 0xA0, 0x32,
 
     /* ───────── Interface 0: Joystick ───────── */
     0x09, 0x04, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00,
 
     0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
-    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF),
-    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
+    LOBYTE(sizeof(HID_JOY_ReportDesc)),
+    HIBYTE(sizeof(HID_JOY_ReportDesc)),  
 
     0x07, 0x05, HID_JOY_EPIN_ADDR, 0x03, 0x40, 0x00, 0x01,
 
@@ -63,8 +64,8 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[] __ALIGN_END =
     0x09, 0x04, 0x01, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00,
 
     0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
-    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF),
-    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
+    LOBYTE(sizeof(HID_FFB_ReportDesc)),
+    HIBYTE(sizeof(HID_FFB_ReportDesc)),
 
     0x07, 0x05, HID_FFB_EPIN_ADDR, 0x03, 0x40, 0x00, 0x01,
     0x07, 0x05, HID_FFB_EPOUT_ADDR, 0x03, 0x40, 0x00, 0x01,
@@ -73,8 +74,8 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[] __ALIGN_END =
     0x09, 0x04, 0x02, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00,
 
     0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
-    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF),
-    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
+    LOBYTE(sizeof(HID_VENDOR_ReportDesc)),
+    HIBYTE(sizeof(HID_VENDOR_ReportDesc)),
 
     0x07, 0x05, HID_VENDOR_EPIN_ADDR, 0x03, 0x40, 0x00, 0x01,
 };
@@ -207,12 +208,42 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
 
         case USB_REQ_GET_DESCRIPTOR:
             if ((req->wValue >> 8) == HID_REPORT_DESC_TYPE) {
-                len = MIN(HID_REPORT_DESC_SIZE, req->wLength);
-                pbuf = HID_ReportDesc;
-                USBD_CtlSendData(pdev, pbuf, len);
+
+            uint8_t intf = req->wIndex & 0xFF;
+
+            if (intf == 0) {
+                len = MIN(sizeof(HID_JOY_ReportDesc), req->wLength);
+                USBD_CtlSendData(pdev, HID_JOY_ReportDesc, len);
+            }
+            else if (intf == 1) {
+                len = MIN(sizeof(HID_FFB_ReportDesc), req->wLength);
+                USBD_CtlSendData(pdev, HID_FFB_ReportDesc, len);
+            }
+            else if (intf == 2) {
+                len = MIN(sizeof(HID_VENDOR_ReportDesc), req->wLength);
+                USBD_CtlSendData(pdev, HID_VENDOR_ReportDesc, len);
+            }
+            else {
+                USBD_CtlError(pdev, req);
+                ret = USBD_FAIL;
             } else if ((req->wValue >> 8) == HID_DESCRIPTOR_TYPE) {
-                /* Return just the HID descriptor (9 bytes) from inside CfgDesc */
-                pbuf = USBD_HID_CfgDesc + 18U; /* offset past config + interface */
+
+                uint8_t intf = req->wIndex & 0xFF;
+
+                if (intf == 0) {
+                    pbuf = &USBD_HID_CfgDesc[18];   // joystick HID desc
+                }
+                else if (intf == 1) {
+                    pbuf = &USBD_HID_CfgDesc[34];   // ⚠ ajustar offset real
+                }
+                else if (intf == 2) {
+                    pbuf = &USBD_HID_CfgDesc[59];   // ⚠ ajustar offset real
+                }
+                else {
+                    USBD_CtlError(pdev, req);
+                    return USBD_FAIL;
+                }
+
                 len = MIN(USB_HID_DESC_SIZ, req->wLength);
                 USBD_CtlSendData(pdev, pbuf, len);
             } else {
