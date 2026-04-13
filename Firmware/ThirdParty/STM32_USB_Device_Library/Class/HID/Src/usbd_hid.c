@@ -11,6 +11,7 @@
 #include "usbd_hid.h"
 #include "usbd_ctlreq.h"
 #include "ffb_pid.h"
+#include "hid_queue.h"
 
 static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
@@ -287,6 +288,8 @@ static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
     (void)epnum;
     ((USBD_HID_HandleTypeDef *)pdev->pClassData)->state = HID_IDLE;
+
+    hid_queue_process();
     return (uint8_t)USBD_OK;
 }
 

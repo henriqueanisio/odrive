@@ -232,40 +232,28 @@ extern "C" void hid_send_telemetry(void)
     t.phase_inductance = ax.motor_.config_.phase_inductance;
 
     t.current_state    = static_cast<uint8_t>(ax.current_state_);
-    t.flags            = (ax.encoder_.is_ready_        ? 0x01U : 0U)
-                       | (ax.motor_.is_calibrated_      ? 0x02U : 0U);
+    t.flags            = (ax.encoder_.is_ready_ ? 0x01U : 0U)
+                       | (ax.motor_.is_calibrated_ ? 0x02U : 0U);
     t.axis_error       = static_cast<uint32_t>(ax.error_);
     t.motor_error      = static_cast<uint32_t>(ax.motor_.error_);
     t.encoder_error    = static_cast<uint32_t>(ax.encoder_.error_);
     t.mag_agc          = ax.encoder_.abs_agc_;
     t.mag_flags        = ax.encoder_.abs_diag_flags_;
 
-    /* PID State report — sent every call so DirectInput sees actuator status */
-    {
-        uint8_t pid_state[2];
-        pid_state[0] = FFB_REPORT_PID_STATE;
-        pid_state[1] = (uint8_t)(ffb_actuators_enabled() ? 0x01U : 0x00U);
-        USBD_HID_SendReport(&hUsbDeviceFS, pid_state, sizeof(pid_state));
-    }
+    /* ───────────── JOYSTICK ───────────── */
 
-    /* Alternate joystick and telemetry sends to avoid HID_BUSY on the shared
-       interrupt IN endpoint. Telemetry every call (~10 ms); joystick every
-       10th call (~100 ms), well after the previous packet has been ACK'd. */
-    static uint8_t joy_divider = 0U;
-    if (++joy_divider >= 10U) {
-        joy_divider = 0U;
-        /* Scale: ±(steering_max_lock/2) degrees → ±32767
-         * half_turns = (steering_max_lock/2) / 360 = steering_max_lock / 720
-         * joy_x = pos_relative_turns / half_turns * 32767                    */
-        float half_turns = g_config.steering_max_lock / 720.0f;
-        float joy_f = (t.pos_estimate / half_turns) * 32767.0f;
-        if (joy_f >  32767.0f) joy_f =  32767.0f;
-        if (joy_f < -32767.0f) joy_f = -32767.0f;
-        int16_t joy_x = static_cast<int16_t>(joy_f);
-        HID_Joystick_Send(joy_x);
-        /* yield so the joystick packet can be transmitted before telemetry */
-        osDelay(1);
-    }
+    float half_turns = g_config.steering_max_lock / 720.0f;
+
+    float joy_f = (t.pos_estimate / half_turns) * 32767.0f;
+
+    if (joy_f >  32767.0f) joy_f =  32767.0f;
+    if (joy_f < -32767.0f) joy_f = -32767.0f;
+
+    int16_t joy_x = static_cast<int16_t>(joy_f);
+
+    HID_Joystick_Send(joy_x);
+
+    /* ───────────── TELEMETRIA ───────────── */
 
     HID_ODrive_SendTelemetry(&t);
 }
