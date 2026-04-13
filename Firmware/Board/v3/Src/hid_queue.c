@@ -46,7 +46,7 @@ void hid_queue_process(void)
 
     if (!hhid) return;
 
-    if (hhid->state == HID_BUSY) return;
+    if (hhid->state != HID_IDLE) return;
 
     USBD_HID_SendReport(&hUsbDeviceFS,
         queue[tail].data,
