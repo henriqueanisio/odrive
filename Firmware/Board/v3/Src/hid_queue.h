@@ -14,6 +14,7 @@ typedef struct {
 
 void hid_queue_init(void);
 bool hid_queue_push(uint8_t *data, uint16_t len);
+bool hid_queue_push_priority(uint8_t *data, uint16_t len);
 void hid_queue_process(void);
 
 #endif

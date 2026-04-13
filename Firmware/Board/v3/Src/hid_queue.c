@@ -37,6 +37,22 @@ bool hid_queue_push(uint8_t *data, uint16_t len)
     return true;
 }
 
+bool hid_queue_push_priority(uint8_t *data, uint16_t len)
+{
+    if (is_full()) {
+        tail = (tail + 1) % HID_QUEUE_SIZE;
+    }
+
+    /* 🔥 insere antes do head */
+    head = (head == 0) ? (HID_QUEUE_SIZE - 1) : (head - 1);
+
+    memcpy(queue[head].data, data, len);
+    queue[head].len = len;
+
+    hid_queue_process();
+    return true;
+}
+
 void hid_queue_process(void)
 {
     if (is_empty()) return;

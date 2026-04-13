@@ -188,7 +188,7 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
     if (!s.actuators_enabled || s.paused) return 0.0f;
 
     float torque    = 0.0f;
-    float max_t     = g_config.ffb_max_torque;   /* Nm */
+    float max_t     = g_config.ffb_max_torque;
     float gain_norm = (float)s.device_gain / 255.0f;
     uint32_t now    = HAL_GetTick();
 
@@ -196,7 +196,7 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
         FfbEffect_t *e = &s.effects[i];
         if (!e->active || e->type == FFB_ET_NONE) continue;
 
-        /* Check duration expiry */
+        /* duração */
         if (e->duration_ms != 0xFFFFU) {
             if ((now - e->start_tick) >= (uint32_t)e->duration_ms) {
                 e->active = false;
@@ -209,38 +209,35 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
         switch (e->type) {
 
         case FFB_ET_CONSTANT: {
-            /* magnitude -10000..+10000 → -1..+1 × max_torque */
             float t = ((float)e->magnitude / 10000.0f) * max_t;
             torque += t * effect_gain;
             break;
         }
 
         case FFB_ET_SPRING: {
-            /* cp_offset in 10k units: convert to turns (full range = 2 turns → -1..+1 turns)
-             * The host typically sets cp_offset relative to the axis range it declared. */
-            float cp_turns = ((float)e->cp_offset / 10000.0f); /* fraction of half-range */
+            float cp_turns = ((float)e->cp_offset / 10000.0f);
             float err      = pos_turns - cp_turns;
 
-            /* Dead band check (symmetric around cp) */
             float db = (float)e->dead_band / 10000.0f;
             if (err > -db && err < db) break;
 
-            /* Select coefficient */
             float coeff = (err >= 0.0f)
                 ? ((float)e->pos_coeff / 10000.0f)
                 : ((float)e->neg_coeff / 10000.0f);
 
-            float t = -coeff * err * max_t;  /* restoring force */
+            /* 🔥 NÃO-LINEAR (Simucube feel) */
+            float nonlinear = err * fabsf(err);
 
-            /* Saturation */
+            float t = -coeff * nonlinear * max_t;
+
             float sat = ((float)e->pos_sat / 10000.0f) * max_t;
             t = fclamp(t, -sat, sat);
+
             torque += t * effect_gain;
             break;
         }
 
         case FFB_ET_DAMPER: {
-            /* pos_coeff 0..10000 → damping coefficient */
             float coeff = (float)e->pos_coeff / 10000.0f;
             float t     = -coeff * vel_turns_s * max_t;
             torque += t * effect_gain;
@@ -252,10 +249,32 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
         }
     }
 
-    /* Apply global device gain */
+    /* 🔥 DAMPER GLOBAL (sempre ativo) */
+    float global_damper = 0.05f;
+    torque -= vel_turns_s * global_damper * max_t;
+
+    /* 🔥 GAIN GLOBAL */
     torque *= gain_norm * g_config.ffb_gain;
 
-    return fclamp(torque, -max_t, max_t);
+    /* 🔥 RATE LIMIT (anti spike) */
+    static float last_torque = 0.0f;
+    float max_delta = max_t * 0.15f;
+
+    float delta = torque - last_torque;
+
+    if (delta >  max_delta) delta =  max_delta;
+    if (delta < -max_delta) delta = -max_delta;
+
+    torque = last_torque + delta;
+    last_torque = torque;
+
+    /* 🔥 SMOOTHING */
+    static float torque_filtered = 0.0f;
+    float alpha = 0.2f;
+
+    torque_filtered += alpha * (torque - torque_filtered);
+
+    return fclamp(torque_filtered, -max_t, max_t);
 }
 
 /* ── ffb_get_block_load_report ───────────────────────────────────────────── */

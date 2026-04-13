@@ -251,7 +251,12 @@ extern "C" void hid_send_telemetry(void)
 
     int16_t joy_x = static_cast<int16_t>(joy_f);
 
-    HID_Joystick_Send(joy_x);
+    uint8_t report[3];
+    report[0] = HID_REPORT_ID_JOYSTICK;
+    report[1] = (uint8_t)(joy_x & 0xFF);
+    report[2] = (uint8_t)(joy_x >> 8);
+
+    hid_queue_push_priority(report, sizeof(report));
 
     /* ───────────── TELEMETRIA ───────────── */
 
