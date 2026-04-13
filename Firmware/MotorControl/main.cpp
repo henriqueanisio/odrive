@@ -17,21 +17,9 @@ extern "C" void hid_app_init(void);
 extern "C" void hid_send_telemetry(void);
 
 static void hid_task_fn(void*) {
-    /* Wait for the ODrive axis state machine to finish its startup sequence,
-     * then force M0 encoder GPIO pins (PB4/PB5) back to TIM3 AF2 input mode.
-     * The ODrive initialisation loop may reconfigure these pins; doing this
-     * here (after a 1-second settle) overrides any such reconfiguration. */
-    osDelay(1000);
-    {
-        GPIO_InitTypeDef g = {};
-        g.Pin       = GPIO_PIN_4 | GPIO_PIN_5;
-        g.Mode      = GPIO_MODE_AF_PP;
-        g.Pull      = GPIO_PULLUP;
-        g.Speed     = GPIO_SPEED_FREQ_LOW;
-        g.Alternate = GPIO_AF2_TIM3;
-        HAL_GPIO_Init(GPIOB, &g);
-        HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
-    }
+    /* M0 encoder remapped to TIM2 on PA0/PA1 (GPIO1/GPIO2 header pins).
+     * PA0/PA1 are configured as ENC0 (AF1/TIM2) by the ODrive GPIO init loop
+     * via DEFAULT_GPIO_MODES — no manual GPIO override or TIM3 start needed. */
 
     for (;;) {
         /* Process pending commands first (config response, save, etc.)

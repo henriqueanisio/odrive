@@ -262,20 +262,9 @@ extern "C" void hid_send_telemetry(void)
 /* ── hid_app_init ────────────────────────────────────────────────────────────── */
 extern "C" void hid_app_init(void)
 {
-    /* Force M0 encoder GPIO pins to TIM3 AF2 (encoder input) mode.
-     * The ODrive axis state machine may reconfigure PB4/PB5 during its
-     * startup sequence.  hid_app_init() runs after fully_booted = true,
-     * so this override is the last GPIO write before the HID task starts. */
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    {
-        GPIO_InitTypeDef g = {};
-        g.Pin       = GPIO_PIN_4 | GPIO_PIN_5;
-        g.Mode      = GPIO_MODE_AF_PP;
-        g.Pull      = GPIO_PULLUP;
-        g.Speed     = GPIO_SPEED_FREQ_LOW;
-        g.Alternate = GPIO_AF2_TIM3;
-        HAL_GPIO_Init(GPIOB, &g);
-    }
+    /* M0 encoder remapped to TIM2 on PA0/PA1 (GPIO1/GPIO2 header pins).
+     * PA0/PA1 are configured as ENC0 (TIM2_CH1/CH2, AF1) by the ODrive GPIO
+     * init loop via DEFAULT_GPIO_MODES — no manual override needed here. */
 
     /* Load config from flash; fall back to factory defaults */
     if (!flash_load_config()) {

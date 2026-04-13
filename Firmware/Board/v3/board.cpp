@@ -95,10 +95,10 @@ Motor motors[AXIS_COUNT] = {
 
 Encoder encoders[AXIS_COUNT] = {
     {
-        &htim3, // timer
-        {M0_ENC_Z_GPIO_Port, M0_ENC_Z_Pin}, // index_gpio
-        {M0_ENC_A_GPIO_Port, M0_ENC_A_Pin}, // hallA_gpio
-        {M0_ENC_B_GPIO_Port, M0_ENC_B_Pin}, // hallB_gpio
+        &htim2, // timer — remapped to TIM2 on PA0/PA1 (GPIO1/GPIO2 header pins)
+        {M0_ENC_Z_GPIO_Port, M0_ENC_Z_Pin}, // index_gpio (PC9, unchanged)
+        {GPIOA, GPIO_PIN_0}, // hallA_gpio (PA0 = GPIO1)
+        {GPIOA, GPIO_PIN_1}, // hallB_gpio (PA1 = GPIO2)
         {M0_ENC_Z_GPIO_Port, M0_ENC_Z_Pin}, // hallC_gpio
         &spi3_arbiter // spi_arbiter
     },
@@ -230,8 +230,8 @@ std::array<GpioFunction, 3> alternate_functions[GPIO_COUNT] = {
     /* GPIO0 (inexistent): */ {{}},
 
 #if HW_VERSION_MINOR >= 3
-    /* GPIO1: */ {{{ODrive::GPIO_MODE_UART_A, GPIO_AF8_UART4}, {ODrive::GPIO_MODE_PWM, GPIO_AF2_TIM5}}},
-    /* GPIO2: */ {{{ODrive::GPIO_MODE_UART_A, GPIO_AF8_UART4}, {ODrive::GPIO_MODE_PWM, GPIO_AF2_TIM5}}},
+    /* GPIO1: PA0 — TIM2_CH1 encoder A */ {{{ODrive::GPIO_MODE_UART_A, GPIO_AF8_UART4}, {ODrive::GPIO_MODE_PWM, GPIO_AF2_TIM5}, {ODrive::GPIO_MODE_ENC0, GPIO_AF1_TIM2}}},
+    /* GPIO2: PA1 — TIM2_CH2 encoder B */ {{{ODrive::GPIO_MODE_UART_A, GPIO_AF8_UART4}, {ODrive::GPIO_MODE_PWM, GPIO_AF2_TIM5}, {ODrive::GPIO_MODE_ENC0, GPIO_AF1_TIM2}}},
     /* GPIO3: */ {{{ODrive::GPIO_MODE_UART_B, GPIO_AF7_USART2}, {ODrive::GPIO_MODE_PWM, GPIO_AF2_TIM5}}},
 #else
     /* GPIO1: */ {{}},

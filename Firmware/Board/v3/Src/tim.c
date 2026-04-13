@@ -149,18 +149,29 @@ void MX_TIM1_Init(void)
   HAL_TIM_MspPostInit(&htim1);
 
 }
-/* TIM2 init function */
+/* TIM2 init function — remapped as M0 encoder on PA0 (CH1) / PA1 (CH2).
+ * Brake resistor (old TIM2 PWM on PB10/PB11) is disabled; enable_brake_resistor
+ * must remain 0 in the HID config. */
 void MX_TIM2_Init(void)
 {
+  TIM_Encoder_InitTypeDef sConfig;
   TIM_MasterConfigTypeDef sMasterConfig;
-  TIM_OC_InitTypeDef sConfigOC;
 
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_CENTERALIGNED3;
-  htim2.Init.Period = TIM_APB1_PERIOD_CLOCKS;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 0xffff;          /* 16-bit wrap — same as TIM3 */
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  sConfig.EncoderMode    = TIM_ENCODERMODE_TI12;
+  sConfig.IC1Polarity    = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection   = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler   = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter      = 4;
+  sConfig.IC2Polarity    = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection   = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler   = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter      = 4;
+  if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -171,25 +182,6 @@ void MX_TIM2_Init(void)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
-
-  sConfigOC.OCMode = TIM_OCMODE_PWM2;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  sConfigOC.Pulse = TIM_APB1_PERIOD_CLOCKS+1;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-
-  HAL_TIM_MspPostInit(&htim2);
-
 }
 /* TIM3 init function */
 void MX_TIM3_Init(void)
@@ -430,7 +422,22 @@ void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef* tim_pwmHandle)
 void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* tim_encoderHandle)
 {
 
-  if(tim_encoderHandle->Instance==TIM3)
+  if(tim_encoderHandle->Instance==TIM2)
+  {
+    /* TIM2 remapped as M0 encoder: PA0 = CH1 (A), PA1 = CH2 (B) */
+    __HAL_RCC_TIM2_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    {
+      GPIO_InitTypeDef g = {};
+      g.Pin       = GPIO_PIN_0 | GPIO_PIN_1;
+      g.Mode      = GPIO_MODE_AF_PP;
+      g.Pull      = GPIO_PULLUP;
+      g.Speed     = GPIO_SPEED_FREQ_LOW;
+      g.Alternate = GPIO_AF1_TIM2;
+      HAL_GPIO_Init(GPIOA, &g);
+    }
+  }
+  else if(tim_encoderHandle->Instance==TIM3)
   {
     __HAL_RCC_TIM3_CLK_ENABLE();
   }
@@ -502,27 +509,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
 
   /* USER CODE END TIM1_MspPostInit 1 */
   }
-  else if(timHandle->Instance==TIM2)
-  {
-  /* USER CODE BEGIN TIM2_MspPostInit 0 */
-
-  /* USER CODE END TIM2_MspPostInit 0 */
-  
-    /**TIM2 GPIO Configuration    
-    PB10     ------> TIM2_CH3
-    PB11     ------> TIM2_CH4 
-    */
-    GPIO_InitStruct.Pin = AUX_L_Pin|AUX_H_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN TIM2_MspPostInit 1 */
-
-  /* USER CODE END TIM2_MspPostInit 1 */
-  }
+  /* TIM2 MspPostInit removed: TIM2 is now an encoder, not a PWM brake resistor */
   else if(timHandle->Instance==TIM8)
   {
   /* USER CODE BEGIN TIM8_MspPostInit 0 */
