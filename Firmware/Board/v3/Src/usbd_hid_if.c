@@ -3,9 +3,6 @@
 #include <string.h>
 #include "hid_queue.h"
 
-extern uint8_t HID_JOY_ReportDesc[];
-extern uint8_t HID_FFB_ReportDesc[];
-extern uint8_t HID_VENDOR_ReportDesc[];
 
 /* ── Combined HID Report Descriptor ──────────────────────────────────────────
  *
