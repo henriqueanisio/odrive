@@ -72,7 +72,10 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN_E
     0x00,                          /* bCountryCode */
     0x01,                          /* bNumDescriptors */
     HID_REPORT_DESC_TYPE,          /* bDescriptorType: Report (0x22) */
-    HID_REPORT_DESC_SIZE, 0x00,    /* wDescriptorLength */
+    /* wDescriptorLength — must be 16-bit LE; cannot use the macro directly
+     * in a uint8_t array because values > 255 would be truncated silently. */
+    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFFU),   /* low  byte = 0xD6 (470) */
+    (uint8_t)(HID_REPORT_DESC_SIZE >> 8U),      /* high byte = 0x01 (470) */
 
     /* ---------- Endpoint Descriptor ---------- */
     0x07,                          /* bLength */
