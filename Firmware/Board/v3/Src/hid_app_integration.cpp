@@ -39,7 +39,7 @@
 #include <MotorControl/odrive_main.h>   /* odrv, Axis */
 #include <MotorControl/controller.hpp>  /* Controller::ControlMode, InputMode  */
 #include <string.h>
-#include "usbd_queue.h"
+#include "hid_queue.h"
 
 /* ── Convenience accessor ───────────────────────────────────────────────────── */
 static inline Axis& axis0() { return odrv.get_axis(0); }
