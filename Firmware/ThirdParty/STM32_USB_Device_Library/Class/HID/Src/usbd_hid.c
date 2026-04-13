@@ -209,16 +209,16 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                     uint8_t intf = req->wIndex & 0xFF;
 
                     if (intf == 0) {
-                        len = MIN(sizeof(HID_JOY_DESC_SIZE), req->wLength);
-                        USBD_CtlSendData(pdev, HID_JOY_DESC_SIZE, len);
+                        len = MIN(HID_JOY_DESC_SIZE, req->wLength);
+                        USBD_CtlSendData(pdev, HID_JOY_ReportDesc, len);
                     }
                     else if (intf == 1) {
-                        len = MIN(sizeof(HID_FFB_DESC_SIZE), req->wLength);
-                        USBD_CtlSendData(pdev, HID_FFB_DESC_SIZE, len);
+                        len = MIN(HID_FFB_DESC_SIZE, req->wLength);
+                        USBD_CtlSendData(pdev, HID_FFB_ReportDesc, len);
                     }
                     else if (intf == 2) {
-                        len = MIN(sizeof(HID_VENDOR_DESC_SIZE), req->wLength);
-                        USBD_CtlSendData(pdev, HID_VENDOR_DESC_SIZE, len);
+                        len = MIN(HID_VENDOR_DESC_SIZE, req->wLength);
+                        USBD_CtlSendData(pdev, HID_VENDOR_ReportDesc, len);
                     }
                     else {
                         USBD_CtlError(pdev, req);
