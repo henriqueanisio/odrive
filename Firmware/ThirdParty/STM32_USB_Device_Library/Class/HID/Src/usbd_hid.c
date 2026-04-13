@@ -48,7 +48,7 @@ USBD_ClassTypeDef USBD_HID = {
 __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[] __ALIGN_END =
 {
     /* CONFIG */
-    0x09, 0x02, LOBYTE(sizeof(USBD_HID_CfgDesc)), HIBYTE(sizeof(USBD_HID_CfgDesc)), 0x03, 0x01, 0x00, 0xA0, 0x32,
+    0x09, 0x02, 0x5B, 0x00, 0x03, 0x01, 0x00, 0xA0, 0x32,
 
     /* ───────── Interface 0: Joystick ───────── */
     0x09, 0x04, 0x00, 0x00, 0x01, 0x03, 0x00, 0x00, 0x00,
@@ -309,13 +309,18 @@ static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
     USBD_HID_HandleTypeDef *hhid =
         (USBD_HID_HandleTypeDef*)pdev->pClassData;
 
-    uint8_t *buf = hhid->Report_buf;
+    uint8_t *buf = hhid->OutReportBuf;
 
     uint8_t report_id = buf[0];
 
     ffb_process_report(report_id, &buf[1], HID_EPOUT_SIZE - 1);
 
-    USBD_LL_PrepareReceive(pdev, HID_FFB_EPOUT_ADDR, buf, HID_EPOUT_SIZE);
+    USBD_LL_PrepareReceive(
+        pdev,
+        HID_FFB_EPOUT_ADDR,
+        hhid->OutReportBuf,
+        HID_EPOUT_SIZE
+    );
 
     return USBD_OK;
 }

@@ -57,7 +57,11 @@ typedef struct {
     uint32_t IdleState;
     uint32_t AltSetting;
     volatile uint32_t state;
-    uint8_t  FeatureBuf[HID_FEATURE_REPORT_BUF_SIZE];
+
+    uint8_t FeatureBuf[HID_FEATURE_REPORT_BUF_SIZE];
+
+    uint8_t OutReportBuf[64]; 
+
 } USBD_HID_HandleTypeDef;
 
 /** Report descriptor is defined in usbd_hid_if.c */
