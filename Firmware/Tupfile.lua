@@ -256,6 +256,7 @@ board_v3 = {
         'Src/usart.c',
         'Src/usbd_cdc_if.c',
         'Src/usbd_hid_if.c',
+        'Src/hid_queue.c',
         'Src/hid_app_integration.cpp',
         'Src/protocol.c',
         'Src/flash_storage.c',
