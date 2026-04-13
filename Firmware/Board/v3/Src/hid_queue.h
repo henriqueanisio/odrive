@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define HID_QUEUE_SIZE 16
 #define HID_MAX_REPORT_SIZE 64
 
@@ -16,5 +20,9 @@ void hid_queue_init(void);
 bool hid_queue_push(uint8_t *data, uint16_t len);
 bool hid_queue_push_priority(uint8_t *data, uint16_t len);
 void hid_queue_process(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
