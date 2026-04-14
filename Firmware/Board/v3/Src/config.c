@@ -153,6 +153,42 @@ bool config_set(uint16_t param_id, float value)
             if (value < 0.0f || value > 1.0f) return false;
             g_config.ffb_gain = value;                               return true;
 
+        case CFG_FFB_DAMPING:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_damping = value;                            return true;
+
+        case CFG_FFB_FRICTION:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_friction = value;                           return true;
+
+        case CFG_FFB_INERTIA:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_inertia = value;                            return true;
+
+        case CFG_FFB_SPRING:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_spring = value;                             return true;
+
+        case CFG_FFB_SLEW_RATE:
+            if (value < 0.0f || value > 10.0f) return false;
+            g_config.ffb_slew_rate = value;                          return true;
+
+        case CFG_FFB_FILTER_HZ:
+            if (value < 0.0f || value > 500.0f) return false;
+            g_config.ffb_filter_hz = value;                          return true;
+
+        case CFG_FFB_MIN_FORCE:
+            if (value < 0.0f || value > 0.5f) return false;
+            g_config.ffb_min_force = value;                          return true;
+
+        case CFG_FFB_ENDSTOP_STRENGTH:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_endstop_strength = value;                   return true;
+
+        case CFG_FFB_ENDSTOP_RANGE:
+            if (value < 0.0f || value > 0.5f) return false;
+            g_config.ffb_endstop_range = value;                      return true;
+
         default:
             return false;
     }
@@ -236,6 +272,24 @@ bool config_get(uint16_t param_id, float *value_out)
 
         case CFG_FFB_GAIN:
             *value_out = g_config.ffb_gain;                           return true;
+        case CFG_FFB_DAMPING:
+            *value_out = g_config.ffb_damping;                        return true;
+        case CFG_FFB_FRICTION:
+            *value_out = g_config.ffb_friction;                       return true;
+        case CFG_FFB_INERTIA:
+            *value_out = g_config.ffb_inertia;                        return true;
+        case CFG_FFB_SPRING:
+            *value_out = g_config.ffb_spring;                         return true;
+        case CFG_FFB_SLEW_RATE:
+            *value_out = g_config.ffb_slew_rate;                      return true;
+        case CFG_FFB_FILTER_HZ:
+            *value_out = g_config.ffb_filter_hz;                      return true;
+        case CFG_FFB_MIN_FORCE:
+            *value_out = g_config.ffb_min_force;                      return true;
+        case CFG_FFB_ENDSTOP_STRENGTH:
+            *value_out = g_config.ffb_endstop_strength;               return true;
+        case CFG_FFB_ENDSTOP_RANGE:
+            *value_out = g_config.ffb_endstop_range;                  return true;
 
         default:
             return false;

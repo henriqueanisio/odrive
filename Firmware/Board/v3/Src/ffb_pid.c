@@ -185,20 +185,41 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 }
 
 /* ── ffb_compute_torque ──────────────────────────────────────────────────── */
+/*
+ * Pipeline de efeitos — ordem de aplicação:
+ *   1. Efeitos DirectInput (Constant Force, Spring, Damper via HID PID)
+ *   2. Inércia          (-J × Δvel/dt — simula massa do volante)
+ *   3. Fricção          (Coulomb: -sign(vel) × friction × max_t)
+ *   4. Amortecimento    (vel-proporcional: -vel × damping × max_t)
+ *   5. Mola central     (sempre ativa se ffb_spring > 0)
+ *   6. Gain global      (device_gain × ffb_gain)
+ *   7. Força mínima     (dead-zone: zera torques abaixo de min_force × max_t)
+ *   8. Slew rate        (limita variação de torque por ciclo → Nm/ms × 10ms)
+ *   9. Filtro passa-baixa (IIR 1ª ordem, alpha calculado a partir de filter_hz)
+ *
+ * Endstops são aplicados pelo caller (apply_endstops em hid_app_integration.cpp).
+ * Período de ciclo nominal: DT_S = 10 ms.
+ */
+#define FFB_DT_S   (0.010f)   /* seconds per control cycle (10 ms task)      */
+#define FFB_DT_MS  (10.0f)    /* same in milliseconds                        */
+
 float ffb_compute_torque(float pos_turns, float vel_turns_s)
 {
     if (!s.actuators_enabled || s.paused) return 0.0f;
 
-    float torque    = 0.0f;
-    float max_t     = g_config.ffb_max_torque;
-    float gain_norm = (float)s.device_gain / 255.0f;
-    uint32_t now    = HAL_GetTick();
+    const float max_t     = g_config.ffb_max_torque;
+    const float gain_norm = (float)s.device_gain / 255.0f;
+    const uint32_t now    = HAL_GetTick();
+
+    /* ── PASSO 1: Efeitos DirectInput ──────────────────────────────────────
+     * Soma contribuição de cada slot de efeito ativo dentro do prazo.      */
+    float torque = 0.0f;
 
     for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
         FfbEffect_t *e = &s.effects[i];
         if (!e->active || e->type == FFB_ET_NONE) continue;
 
-        /* duração */
+        /* Expira efeito com duração finita */
         if (e->duration_ms != 0xFFFFU) {
             if ((now - e->start_tick) >= (uint32_t)e->duration_ms) {
                 e->active = false;
@@ -206,43 +227,51 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
             }
         }
 
-        float effect_gain = (float)e->gain / 255.0f;
+        float eg = (float)e->gain / 255.0f;  /* per-effect gain 0..1 */
 
         switch (e->type) {
 
         case FFB_ET_CONSTANT: {
+            /* Força constante linear: direta, sem não-linearidade */
             float t = ((float)e->magnitude / 10000.0f) * max_t;
-            torque += t * effect_gain;
+            torque += t * eg;
             break;
         }
 
         case FFB_ET_SPRING: {
-            float cp_turns = ((float)e->cp_offset / 10000.0f);
-            float err      = pos_turns - cp_turns;
+            /* Spring (Condition report): centraliza o volante no cp_offset.
+             * Modelo não-linear: err×|err| → progressividade Simucube.     */
+            float cp    = (float)e->cp_offset / 10000.0f;
+            float err   = pos_turns - cp;
+            float db    = (float)e->dead_band / 10000.0f;
 
-            float db = (float)e->dead_band / 10000.0f;
-            if (err > -db && err < db) break;
+            /* Dead-band: sem força enquanto err dentro da zona neutra */
+            float abs_err = (err < 0.0f) ? -err : err;
+            if (abs_err <= db) break;
 
+            /* Cômputa coeff assimétrico (positivo/negativo) */
             float coeff = (err >= 0.0f)
                 ? ((float)e->pos_coeff / 10000.0f)
                 : ((float)e->neg_coeff / 10000.0f);
 
-            /* 🔥 NÃO-LINEAR (Simucube feel) */
-            float nonlinear = err * fabsf(err);
+            /* Não-linear: err×|err| dá sensação progressiva semelhante ao
+             * Simucube — fraco perto do centro, firme nos extremos          */
+            float t = -coeff * err * abs_err * max_t;
 
-            float t = -coeff * nonlinear * max_t;
-
+            /* Saturação de saída */
             float sat = ((float)e->pos_sat / 10000.0f) * max_t;
-            t = fclamp(t, -sat, sat);
+            if (sat > 0.0f) t = fclamp(t, -sat, sat);
 
-            torque += t * effect_gain;
+            torque += t * eg;
             break;
         }
 
         case FFB_ET_DAMPER: {
+            /* Damper (Condition report): resistência proporcional à velocidade.
+             * coeff vem do positive_coefficient do report.                   */
             float coeff = (float)e->pos_coeff / 10000.0f;
             float t     = -coeff * vel_turns_s * max_t;
-            torque += t * effect_gain;
+            torque += t * eg;
             break;
         }
 
@@ -251,32 +280,116 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
         }
     }
 
-    /* 🔥 DAMPER GLOBAL (sempre ativo) */
-    float global_damper = 0.05f;
-    torque -= vel_turns_s * global_damper * max_t;
+    /* ── PASSO 2: Inércia (massa do volante simulada) ───────────────────────
+     * F_inertia = -J × dω/dt
+     * Calculamos dω/dt = (vel_atual - vel_anterior) / dt
+     * Isso resiste a mudanças bruscas de velocidade → sensação de peso real. */
+    {
+        static float last_vel = 0.0f;
+        float accel = (vel_turns_s - last_vel) / FFB_DT_S;   /* turns/s²    */
+        last_vel = vel_turns_s;
 
-    /* 🔥 GAIN GLOBAL */
+        float inertia_t = -g_config.ffb_inertia * accel * max_t;
+        /* Satura inércia em ±50% do max para evitar spike em startup        */
+        inertia_t = fclamp(inertia_t, -max_t * 0.5f, max_t * 0.5f);
+        torque += inertia_t;
+    }
+
+    /* ── PASSO 3: Fricção de Coulomb ────────────────────────────────────────
+     * Resistência constante que sempre opõe o movimento.
+     * Dead-band em ±0.005 turns/s (~0.03 RPM) para não travar no repouso.   */
+    if (g_config.ffb_friction > 0.0f) {
+        const float VEL_DEADBAND = 0.005f;
+        float friction_t = 0.0f;
+        if (vel_turns_s > VEL_DEADBAND) {
+            friction_t = -g_config.ffb_friction * max_t;
+        } else if (vel_turns_s < -VEL_DEADBAND) {
+            friction_t =  g_config.ffb_friction * max_t;
+        }
+        torque += friction_t;
+    }
+
+    /* ── PASSO 4: Amortecimento global ─────────────────────────────────────
+     * Proporcional à velocidade — suaviza oscilações (rubber-banding).       */
+    torque -= vel_turns_s * g_config.ffb_damping * max_t;
+
+    /* ── PASSO 5: Mola central sempre ativa ────────────────────────────────
+     * Independente dos efeitos do jogo — recentra o volante.
+     * Útil para menus e quando o jogo não envia spring.                      */
+    if (g_config.ffb_spring > 0.0f) {
+        torque -= pos_turns * g_config.ffb_spring * max_t;
+    }
+
+    /* ── PASSO 6: Gain global ───────────────────────────────────────────────
+     * device_gain: controlado pelo jogo via HID PID Device Gain report (0xD).
+     * ffb_gain: configurado pelo usuário na GUI.                              */
     torque *= gain_norm * g_config.ffb_gain;
 
-    /* 🔥 RATE LIMIT (anti spike) */
-    static float last_torque = 0.0f;
-    float max_delta = max_t * 0.15f;
+    /* ── PASSO 7: Força mínima (dead-zone) ─────────────────────────────────
+     * Remove micro-torques que apenas causam vibração sem feedback útil.
+     * min_force define a fração de max_t abaixo da qual a saída é zerada.   */
+    if (g_config.ffb_min_force > 0.0f) {
+        float min_t = g_config.ffb_min_force * max_t;
+        float abs_t = (torque < 0.0f) ? -torque : torque;
+        if (abs_t < min_t) {
+            torque = 0.0f;
+        }
+    }
 
-    float delta = torque - last_torque;
+    /* ── PASSO 8: Slew rate limiter ─────────────────────────────────────────
+     * Limita quanto o torque pode mudar por ciclo (Nm/ms × 10 ms/ciclo).
+     * Previne spikes elétricos e protege o motor de transientes abruptos.
+     * slew_rate == 0 → limitador desabilitado.                               */
+    {
+        static float last_torque = 0.0f;
+        if (g_config.ffb_slew_rate > 0.0f) {
+            float max_delta = g_config.ffb_slew_rate * FFB_DT_MS;  /* Nm/ms × ms */
+            float delta     = torque - last_torque;
+            if (delta >  max_delta) delta =  max_delta;
+            if (delta < -max_delta) delta = -max_delta;
+            torque = last_torque + delta;
+        }
+        last_torque = torque;
+    }
 
-    if (delta >  max_delta) delta =  max_delta;
-    if (delta < -max_delta) delta = -max_delta;
+    /* ── PASSO 9: Filtro passa-baixa (IIR 1ª ordem) ─────────────────────────
+     * alpha = 1 - exp(-2π × fc × dt)
+     * fc = ffb_filter_hz, dt = 0.01 s.
+     * filter_hz == 0 → filtro desabilitado (alpha = 1.0, sem latência).
+     *
+     * Valores práticos:
+     *   10 Hz → alpha ≈ 0.47  (suave, ~95 ms lag)
+     *   30 Hz → alpha ≈ 0.85  (equilíbrio, ~30 ms lag)
+     *   60 Hz → alpha ≈ 0.98  (quase transparente, ~16 ms lag)
+     *  100 Hz → alpha ≈ 0.998 (transparente)                                */
+    {
+        static float torque_filtered = 0.0f;
+        float alpha;
+        if (g_config.ffb_filter_hz > 0.0f) {
+            /* Pré-calcular: 2π × fc × dt ≈ 0.06283 × fc */
+            float x = 6.2832f * g_config.ffb_filter_hz * FFB_DT_S;
+            /* Aproximação de exp(-x) via série de Taylor para x < 4 (fc < 64 Hz)
+             * ou clamp para x ≥ 4 → exp(-4) ≈ 0.018 → alpha ≈ 0.982        */
+            float ex;
+            if (x >= 4.0f) {
+                ex = 0.0183f;   /* exp(-4) */
+            } else {
+                /* exp(-x) ≈ 1 - x + x²/2 - x³/6 + x⁴/24  (erro < 0.1% para x<4) */
+                float x2 = x * x;
+                ex = 1.0f - x + x2 * 0.5f - x2 * x * 0.16667f + x2 * x2 * 0.04167f;
+            }
+            alpha = 1.0f - ex;
+            if (alpha < 0.0f) alpha = 0.0f;
+            if (alpha > 1.0f) alpha = 1.0f;
+        } else {
+            alpha = 1.0f;   /* sem filtro */
+        }
+        torque_filtered += alpha * (torque - torque_filtered);
+        torque = torque_filtered;
+    }
 
-    torque = last_torque + delta;
-    last_torque = torque;
-
-    /* 🔥 SMOOTHING */
-    static float torque_filtered = 0.0f;
-    float alpha = 0.2f;
-
-    torque_filtered += alpha * (torque - torque_filtered);
-
-    return fclamp(torque_filtered, -max_t, max_t);
+    /* Clamp final de segurança */
+    return fclamp(torque, -max_t, max_t);
 }
 
 /* ── ffb_get_block_load_report ───────────────────────────────────────────── */

@@ -60,6 +60,15 @@ extern "C" {
 /* Force Feedback */
 #define CFG_FFB_MAX_TORQUE                  600U  /* Nm — peak output torque           */
 #define CFG_FFB_GAIN                        601U  /* 0.0–1.0 — global FFB scale        */
+#define CFG_FFB_DAMPING                     602U  /* 0.0–1.0 — velocity damping coeff  */
+#define CFG_FFB_FRICTION                    603U  /* 0.0–1.0 — Coulomb friction coeff  */
+#define CFG_FFB_INERTIA                     604U  /* 0.0–1.0 — inertia (mass sim)      */
+#define CFG_FFB_SPRING                      605U  /* 0.0–1.0 — center spring coeff     */
+#define CFG_FFB_SLEW_RATE                   606U  /* Nm/ms — output slew rate (0=off)  */
+#define CFG_FFB_FILTER_HZ                   607U  /* Hz — output low-pass (0=off)      */
+#define CFG_FFB_MIN_FORCE                   608U  /* 0.0–1.0 — dead-zone fraction      */
+#define CFG_FFB_ENDSTOP_STRENGTH            609U  /* 0.0–1.0 — endstop counterforce    */
+#define CFG_FFB_ENDSTOP_RANGE               610U  /* 0.0–0.5 — fade zone (frac of lock)*/
 
 /* ── Config struct ─────────────────────────────────────────────────────────── */
 typedef struct {
@@ -108,6 +117,15 @@ typedef struct {
     /* Force Feedback */
     float   ffb_max_torque;            /* Nm peak — clamps all FFB output           */
     float   ffb_gain;                  /* 0.0–1.0 global scale applied after effects */
+    float   ffb_damping;               /* 0.0–1.0 — velocity-proportional damping   */
+    float   ffb_friction;              /* 0.0–1.0 — Coulomb friction coefficient    */
+    float   ffb_inertia;               /* 0.0–1.0 — rotational inertia (mass sim)   */
+    float   ffb_spring;                /* 0.0–1.0 — always-on center spring         */
+    float   ffb_slew_rate;             /* Nm/ms — torque slew rate limit (0=off)    */
+    float   ffb_filter_hz;             /* Hz — output low-pass filter (0=off)       */
+    float   ffb_min_force;             /* 0.0–1.0 — minimum force dead-zone         */
+    float   ffb_endstop_strength;      /* 0.0–1.0 — endstop counterforce fraction   */
+    float   ffb_endstop_range;         /* 0.0–0.5 — fade zone as fraction of lock   */
 } ODriveConfig_t;
 
 /* Factory defaults */
@@ -142,6 +160,15 @@ typedef struct {
     .steering_max_lock             = 900.0f,          \
     .ffb_max_torque                = 3.0f,            \
     .ffb_gain                      = 1.0f,            \
+    .ffb_damping                   = 0.03f,           \
+    .ffb_friction                  = 0.01f,           \
+    .ffb_inertia                   = 0.02f,           \
+    .ffb_spring                    = 0.0f,            \
+    .ffb_slew_rate                 = 0.05f,           \
+    .ffb_filter_hz                 = 60.0f,           \
+    .ffb_min_force                 = 0.0f,            \
+    .ffb_endstop_strength          = 0.3f,            \
+    .ffb_endstop_range             = 0.08f,           \
 }
 
 extern ODriveConfig_t g_config;

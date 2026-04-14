@@ -348,23 +348,25 @@ extern "C" void hid_send_telemetry(void)
  * ─────────────────────────────────────────────────────────────────────────── */
 static float apply_endstops(float torque, float pos_turns)
 {
-    float limit = g_config.steering_max_lock / 720.0f;  /* half-range in turns */
-    float zone  = limit * 0.08f;   /* fade zone = 8% of half-range             */
-    float inner = limit - zone;
+    float limit    = g_config.steering_max_lock / 720.0f;    /* half-range in turns         */
+    float range    = g_config.ffb_endstop_range;             /* fade zone fraction [0..0.5] */
+    float strength = g_config.ffb_endstop_strength;          /* counterforce fraction [0..1]*/
+    float zone     = limit * range;                          /* absolute fade zone (turns)  */
+    float inner    = limit - zone;                           /* inner edge of fade zone     */
 
     if (pos_turns > inner) {
-        /* Right endstop zone: fade out positive torque */
-        float t = (pos_turns - inner) / zone;
+        /* Zona de endstop direita: atenua torque positivo progressivamente */
+        float t = (zone > 0.0f) ? ((pos_turns - inner) / zone) : 1.0f;
         if (t > 1.0f) t = 1.0f;
         if (torque > 0.0f) torque *= (1.0f - t);
-        /* Hard limit: push back toward centre */
-        if (pos_turns >= limit) torque = -g_config.ffb_max_torque * 0.3f;
+        /* No limite duro: contraforca configurável empurra de volta ao centro */
+        if (pos_turns >= limit) torque = -(g_config.ffb_max_torque * strength);
     } else if (pos_turns < -inner) {
-        /* Left endstop zone: fade out negative torque */
-        float t = (-pos_turns - inner) / zone;
+        /* Zona de endstop esquerda: espelho simétrico */
+        float t = (zone > 0.0f) ? ((-pos_turns - inner) / zone) : 1.0f;
         if (t > 1.0f) t = 1.0f;
         if (torque < 0.0f) torque *= (1.0f - t);
-        if (pos_turns <= -limit) torque = g_config.ffb_max_torque * 0.3f;
+        if (pos_turns <= -limit) torque = (g_config.ffb_max_torque * strength);
     }
     return torque;
 }
