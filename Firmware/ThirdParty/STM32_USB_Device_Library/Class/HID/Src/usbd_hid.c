@@ -46,44 +46,24 @@ USBD_ClassTypeDef USBD_HID = {
 
 /* FS/HS/OtherSpeed config descriptor — identical for this device */
 /* FS/HS/OtherSpeed config descriptor — identical for this device */
-__ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN_END = {
-    /* ---------- Configuration Descriptor ---------- */
-    0x09,                          /* bLength */
-    USB_DESC_TYPE_CONFIGURATION,   /* bDescriptorType */
-    USB_HID_CONFIG_DESC_SIZ, 0x00, /* wTotalLength */
-    0x01,                          /* bNumInterfaces */
-    0x01,                          /* bConfigurationValue */
-    0x00,                          /* iConfiguration */
-    0xC0,                          /* bmAttributes: self-powered */
-    0x32,                          /* bMaxPower: 100 mA */
+/* usbd_hid.c */
+__ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[41] __ALIGN_END = {
+    /* Configuration Descriptor (9 bytes) */
+    0x09, 0x02, 0x29, 0x00, 0x01, 0x01, 0x00, 0xC0, 0x32, // wTotalLength = 41 (0x29)
 
-    /* ---------- Interface Descriptor ---------- */
-    0x09,                          /* bLength */
-    USB_DESC_TYPE_INTERFACE,       /* bDescriptorType */
-    0x00,                          /* bInterfaceNumber */
-    0x00,                          /* bAlternateSetting */
-    0x01,                          /* bNumEndpoints */
-    0x03,                          /* bInterfaceClass: HID */
-    0x00,                          /* bInterfaceSubClass: no boot */
-    0x00,                          /* bInterfaceProtocol: none */
-    0x00,                          /* iInterface */
+    /* Interface Descriptor (9 bytes) */
+    0x09, 0x04, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00, // bNumEndpoints = 2 (IN e OUT)
 
-    /* ---------- HID Descriptor ---------- */
-    0x09,                          /* bLength */
-    HID_DESCRIPTOR_TYPE,           /* bDescriptorType: HID (0x21) */
-    0x11, 0x01,                    /* bcdHID: 1.11 */
-    0x00,                          /* bCountryCode */
-    0x01,                          /* bNumDescriptors */
-    HID_REPORT_DESC_TYPE,          /* bDescriptorType: Report (0x22) */
-    HID_REPORT_DESC_SIZE, 0x00,    /* wDescriptorLength */
+    /* HID Descriptor (9 bytes) */
+    0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
+    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF), 
+    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
 
-    /* ---------- Endpoint Descriptor ---------- */
-    0x07,                          /* bLength */
-    USB_DESC_TYPE_ENDPOINT,        /* bDescriptorType */
-    HID_EPIN_ADDR,                 /* bEndpointAddress: EP1 IN */
-    USBD_EP_TYPE_INTR,             /* bmAttributes: Interrupt */
-    HID_EPIN_SIZE, 0x00,           /* wMaxPacketSize */
-    HID_FS_BINTERVAL,              /* bInterval */
+    /* Endpoint IN Descriptor (7 bytes) - O que envia posição pro PC */
+    0x07, 0x05, 0x81, 0x03, 0x40, 0x00, 0x01,
+
+    /* Endpoint OUT Descriptor (7 bytes) - O que recebe a força do PC */
+    0x07, 0x05, 0x01, 0x03, 0x40, 0x00, 0x01, 
 };
 
 /* Device qualifier (required for USB 2.0 compliance, not really used at FS) */
