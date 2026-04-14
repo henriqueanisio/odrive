@@ -217,6 +217,9 @@ extern "C" void HID_ODrive_ProcessCommand(const HID_CommandPayload_t *raw)
 /* ── hid_send_telemetry — call every ~10 ms from telemetry task ─────────────── */
 extern "C" void hid_send_telemetry(void)
 {
+    static uint32_t frame_count = 0;
+    frame_count++;
+
     HID_TelemetryPayload_t t;
     memset(&t, 0, sizeof(t));
 
