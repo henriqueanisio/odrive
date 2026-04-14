@@ -333,12 +333,28 @@ extern "C" void hid_send_telemetry(void)
         hid_queue_push(pid_report, sizeof(pid_report));
     }
 
-    /* ── Joystick (Report 0x01) — consumed by joy.cpl / DirectInput ── */
+    /* ── Joystick (Report 0x01) — consumed by joy.cpl / DirectInput ──
+     * IIR low-pass filter on the joystick axis only — does NOT affect FFB or
+     * telemetry, which both read pos_estimate_ directly.
+     *
+     * Why filter here: with a tight steering lock (e.g. 90°) and a 600 PPR
+     * (2400 CPR) encoder, one encoder count = 32767/300 ≈ 109 HID axis units.
+     * Without smoothing the raw axis jumps 109 units per count in joy.cpl,
+     * which looks like noise but is just the quantization amplified by the
+     * tight lock.  A gentle 15 Hz filter at 100 Hz cadence adds ~6 ms of
+     * lag to the axis — imperceptible in steering but eliminates the jitter.
+     *
+     * fc = 15 Hz, dt = 10 ms → x = 2π × 15 × 0.01 = 0.942
+     * alpha ≈ 1 − exp(−0.942) ≈ 0.610  (first-order Taylor)                */
     float half_turns = g_config.steering_max_lock / 720.0f;
-    float joy_f      = (t.pos_estimate / half_turns) * 32767.0f;
-    if (joy_f >  32767.0f) joy_f =  32767.0f;
-    if (joy_f < -32767.0f) joy_f = -32767.0f;
-    HID_Joystick_Send(static_cast<int16_t>(joy_f));
+    float joy_raw    = (t.pos_estimate / half_turns) * 32767.0f;
+    if (joy_raw >  32767.0f) joy_raw =  32767.0f;
+    if (joy_raw < -32767.0f) joy_raw = -32767.0f;
+    {
+        static float joy_filt = 0.0f;
+        joy_filt += 0.610f * (joy_raw - joy_filt);   /* α ≈ 0.610 @ 15 Hz  */
+        HID_Joystick_Send(static_cast<int16_t>(joy_filt));
+    }
 
     /* ── Telemetry (Report 0x02) — consumed by the GUI ── */
     HID_ODrive_SendTelemetry(&t);
