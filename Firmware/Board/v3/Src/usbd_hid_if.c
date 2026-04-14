@@ -33,8 +33,8 @@
  * compiler will error ("excess elements in array initializer").
  * If smaller, the tail is zero-filled and the USB host may reject the descriptor.
  * Verified count: 470 bytes (417 Joystick+PID + 53 Vendor). */
-__ALIGN_BEGIN uint8_t HID_JOY_ReportDesc[] __ALIGN_END = {
-
+__ALIGN_BEGIN uint8_t HID_ReportDesc[] __ALIGN_END =
+{
 /* Joystick */
 0x05, 0x01,
 0x09, 0x04,
@@ -48,15 +48,11 @@ __ALIGN_BEGIN uint8_t HID_JOY_ReportDesc[] __ALIGN_END = {
   0x95, 0x01,
   0x81, 0x02,
 
-0xC0
-};
-__ALIGN_BEGIN uint8_t HID_FFB_ReportDesc[] __ALIGN_END = {
-
+/* ================= PID (FFB) ================= */
 0x05, 0x0F,
 0x09, 0x92,
 0xA1, 0x01,
 
-  /* Set Effect */
   0x85, 0x05,
   0x09, 0x22,
   0x15, 0x00,
@@ -65,20 +61,6 @@ __ALIGN_BEGIN uint8_t HID_FFB_ReportDesc[] __ALIGN_END = {
   0x95, 0x01,
   0xB1, 0x02,
 
-  /* Effect Type */
-  0x09, 0x25,
-  0xA1, 0x02,
-    0x09, 0x26,
-    0x09, 0x40,
-    0x09, 0x41,
-    0x15, 0x01,
-    0x25, 0x03,
-    0x75, 0x08,
-    0x95, 0x01,
-    0xB1, 0x00,
-  0xC0,
-
-  /* Constant Force */
   0x85, 0x08,
   0x09, 0x70,
   0x16, 0xF0, 0xD8,
@@ -87,7 +69,6 @@ __ALIGN_BEGIN uint8_t HID_FFB_ReportDesc[] __ALIGN_END = {
   0x95, 0x01,
   0xB1, 0x02,
 
-  /* Device Control */
   0x85, 0x0C,
   0x09, 0x96,
   0xA1, 0x02,
@@ -95,52 +76,31 @@ __ALIGN_BEGIN uint8_t HID_FFB_ReportDesc[] __ALIGN_END = {
     0x09, 0x98,
     0x09, 0x99,
     0x09, 0x9A,
-    0x09, 0x9B,
-    0x09, 0x9C,
     0x15, 0x01,
-    0x25, 0x06,
+    0x25, 0x04,
     0x75, 0x08,
     0x95, 0x01,
     0xB1, 0x00,
   0xC0,
 
-  /* PID State */
-  0x85, 0x0E,
-  0x09, 0x90,
-  0xA1, 0x02,
-    0x09, 0x92,
-    0x15, 0x00,
-    0x25, 0x01,
-    0x75, 0x01,
-    0x95, 0x01,
-    0x81, 0x02,
-    0x75, 0x07,
-    0x95, 0x01,
-    0x81, 0x03,
-  0xC0,
+0xC0,
 
-0xC0
-};
-__ALIGN_BEGIN uint8_t HID_VENDOR_ReportDesc[] __ALIGN_END = {
-
+/* ================= VENDOR ================= */
 0x06, 0x00, 0xFF,
 0x09, 0x01,
 0xA1, 0x01,
 
-  /* Telemetry */
   0x85, 0x02,
-  0x09, 0x02,
   0x75, 0x08,
   0x95, 0x30,
   0x81, 0x02,
 
-  /* Command */
   0x85, 0x03,
-  0x09, 0x03,
   0x75, 0x08,
   0x95, 0x08,
-  0xB1, 0x02,
+  0x91, 0x02,
 
+0xC0,
 0xC0
 };
 
@@ -175,28 +135,6 @@ uint8_t HID_ODrive_SendConfigResponse(uint16_t param_id, float value)
     memcpy(&report[1], &param_id, 2);
     memcpy(&report[3], &value,    4);
     return USBD_HID_SendReport(&hUsbDeviceFS, report, sizeof(report));
-}
-
-const uint8_t* HID_GetReportDesc(uint8_t intf, uint16_t *len)
-{
-    switch (intf)
-    {
-        case 0:
-            *len = HID_JOY_DESC_SIZE;
-            return HID_JOY_ReportDesc;
-
-        case 1:
-            *len = HID_FFB_DESC_SIZE;
-            return HID_FFB_ReportDesc;
-
-        case 2:
-            *len = HID_VENDOR_DESC_SIZE;
-            return HID_VENDOR_ReportDesc;
-
-        default:
-            *len = 0;
-            return NULL;
-    }
 }
 
 /* ── HID_ODrive_ProcessCommand (weak default) ────────────────────────────── */
