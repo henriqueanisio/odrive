@@ -170,8 +170,43 @@ static void app_apply_config_core(void)
 
     TIM_HandleTypeDef *htim = ax.encoder_.timer_;
 
-    // 🔥 só garante que está rodando
+    /* Ensure the encoder counter is running (no-op if already started). */
     HAL_TIM_Encoder_Start(htim, TIM_CHANNEL_ALL);
+
+    /* ── NPN open-collector encoder signal conditioning ───────────────────────
+     * E38S6G5-600B-G24N A/B outputs are NPN open-collector: the line pulls
+     * LOW when active and floats high otherwise.  Without an explicit pull-up:
+     *   • Rising edges are slow (driven only by line + pin capacitance)
+     *   • Motor PWM switching couples readily onto the floating lines
+     *   • Both effects produce phantom encoder counts → jittery pos_estimate
+     *
+     * Fix 1 — GPIO pull-up on PA0 / PA1 (TIM2 CH1/CH2):
+     *   Adds the internal ~40 kΩ pull-up to 3.3 V, giving a clean high level
+     *   without requiring external resistors on the board.
+     *
+     * Fix 2 — TIM2 IC input filter (IC1F = IC2F = 0xF):
+     *   f_DTS/32, N=8 → rejects glitches shorter than ≈ 1.5 µs.
+     *   At 600 PPR × 1000 RPM the minimum inter-edge period is ≈ 100 µs,
+     *   so every real edge passes while PWM-coupled spikes are blocked.
+     *
+     * Applied AFTER HAL_TIM_Encoder_Start so the filter is not overwritten
+     * by any HAL routine that re-initialises the capture/compare registers.
+     * ──────────────────────────────────────────────────────────────────────── */
+    {
+        GPIO_InitTypeDef gp = {};
+        gp.Pin       = GPIO_PIN_0 | GPIO_PIN_1;  /* PA0 = TIM2_CH1, PA1 = TIM2_CH2 */
+        gp.Mode      = GPIO_MODE_AF_PP;
+        gp.Pull      = GPIO_PULLUP;              /* ~40 kΩ to 3.3 V                 */
+        gp.Speed     = GPIO_SPEED_FREQ_HIGH;
+        gp.Alternate = GPIO_AF1_TIM2;
+        HAL_GPIO_Init(GPIOA, &gp);
+
+        /* IC1F[7:4] and IC2F[15:12] in TIMx_CCMR1 — both set to 0xF */
+        uint32_t ccmr1 = htim->Instance->CCMR1;
+        ccmr1 &= ~((0x0FU << 4U) | (0x0FU << 12U));  /* clear IC1F, IC2F */
+        ccmr1 |=   (0x0FU << 4U) | (0x0FU << 12U);   /* f_DTS/32, N=8    */
+        htim->Instance->CCMR1 = ccmr1;
+    }
 }
 
 /* ── app_apply_config ────────────────────────────────────────────────────────
