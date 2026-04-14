@@ -24,32 +24,13 @@ void hid_queue_init(void)
 
 bool hid_queue_push(uint8_t *data, uint16_t len)
 {
-    if (is_full()) {
-        /* sobrescreve o mais antigo */
-        tail = (tail + 1) % HID_QUEUE_SIZE;
-    }
+    uint32_t next = (head + 1) % HID_QUEUE_SIZE;
+    if (next == tail) return false; // Fila cheia, descarta (melhor que corromper)
 
     memcpy(queue[head].data, data, len);
     queue[head].len = len;
+    head = next;
 
-    head = (head + 1) % HID_QUEUE_SIZE;
-    hid_queue_process();
-    return true;
-}
-
-bool hid_queue_push_priority(uint8_t *data, uint16_t len)
-{
-    if (is_full()) {
-        tail = (tail + 1) % HID_QUEUE_SIZE;
-    }
-
-    /* 🔥 insere antes do head */
-    head = (head == 0) ? (HID_QUEUE_SIZE - 1) : (head - 1);
-
-    memcpy(queue[head].data, data, len);
-    queue[head].len = len;
-
-    hid_queue_process();
     return true;
 }
 
