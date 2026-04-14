@@ -21,6 +21,8 @@ static ProtocolCallbacks_t s_cb = {
     .apply_config   = _noop_void,
     .set_home       = _noop_void,
     .save_config    = _noop_void,
+    .ffb_test_on    = _noop_void,
+    .ffb_test_off   = _noop_void,
 };
 
 void protocol_init(const ProtocolCallbacks_t *callbacks)
@@ -33,6 +35,8 @@ void protocol_init(const ProtocolCallbacks_t *callbacks)
         if (callbacks->apply_config)   s_cb.apply_config   = callbacks->apply_config;
         if (callbacks->set_home)       s_cb.set_home       = callbacks->set_home;
         if (callbacks->save_config)    s_cb.save_config    = callbacks->save_config;
+        if (callbacks->ffb_test_on)    s_cb.ffb_test_on    = callbacks->ffb_test_on;
+        if (callbacks->ffb_test_off)   s_cb.ffb_test_off   = callbacks->ffb_test_off;
     }
 }
 
@@ -95,6 +99,10 @@ void protocol_dispatch(const HID_Command_t *cmd)
                     g_pending_call = PENDING_CALL_APPLY_CONFIG;    break;
                 case CALL_SET_HOME:
                     g_pending_call = PENDING_CALL_SET_HOME;        break;
+                case CALL_FFB_TEST_ON:
+                    g_pending_call = PENDING_CALL_FFB_TEST_ON;     break;
+                case CALL_FFB_TEST_OFF:
+                    g_pending_call = PENDING_CALL_FFB_TEST_OFF;    break;
                 default: break;
             }
             break;
@@ -146,6 +154,12 @@ void protocol_process_pending(void)
                 break;
             case PENDING_CALL_SET_HOME:
                 s_cb.set_home();
+                break;
+            case PENDING_CALL_FFB_TEST_ON:
+                s_cb.ffb_test_on();
+                break;
+            case PENDING_CALL_FFB_TEST_OFF:
+                s_cb.ffb_test_off();
                 break;
             default:
                 break;

@@ -189,6 +189,65 @@ bool config_set(uint16_t param_id, float value)
             if (value < 0.0f || value > 0.5f) return false;
             g_config.ffb_endstop_range = value;                      return true;
 
+        /* ── FFB Extended (611–628) ── */
+        case CFG_FFB_INPUT_FILTER_HZ:
+            if (value < 0.0f || value > 500.0f) return false;
+            g_config.ffb_input_filter_hz = value;                    return true;
+
+        case CFG_FFB_CENTER_BOOST_STR:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_center_boost_str = value;                   return true;
+
+        case CFG_FFB_CENTER_BOOST_WIDTH:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_center_boost_width = value;                 return true;
+
+        case CFG_FFB_STATIC_FRICTION:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_static_friction = value;                    return true;
+
+        case CFG_FFB_STRIBECK_VEL:
+            if (value < 0.001f || value > 10.0f) return false;
+            g_config.ffb_stribeck_vel = value;                       return true;
+
+        case CFG_FFB_INERTIA_FILTER_HZ:
+            if (value < 0.0f || value > 500.0f) return false;
+            g_config.ffb_inertia_filter_hz = value;                  return true;
+
+        case CFG_FFB_ENDSTOP_EXP: {
+            int32_t e = (int32_t)value;
+            if (e < 1 || e > 4) return false;
+            g_config.ffb_endstop_exp = e;                            return true;
+        }
+
+        case CFG_FFB_THERMAL_TAU:
+            if (value < 1.0f || value > 3600.0f) return false;
+            g_config.ffb_thermal_tau = value;                        return true;
+
+        case CFG_FFB_THERMAL_MIN:
+            if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_thermal_min = value;                        return true;
+
+        case CFG_FFB_LUT_EN:
+            g_config.ffb_lut_enabled = (value != 0.0f) ? 1 : 0;     return true;
+
+        case CFG_FFB_LUT_P0: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[0] = value;                             return true;
+        case CFG_FFB_LUT_P1: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[1] = value;                             return true;
+        case CFG_FFB_LUT_P2: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[2] = value;                             return true;
+        case CFG_FFB_LUT_P3: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[3] = value;                             return true;
+        case CFG_FFB_LUT_P4: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[4] = value;                             return true;
+        case CFG_FFB_LUT_P5: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[5] = value;                             return true;
+        case CFG_FFB_LUT_P6: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[6] = value;                             return true;
+        case CFG_FFB_LUT_P7: if (value < 0.0f || value > 1.0f) return false;
+            g_config.ffb_lut[7] = value;                             return true;
+
         default:
             return false;
     }
@@ -290,6 +349,36 @@ bool config_get(uint16_t param_id, float *value_out)
             *value_out = g_config.ffb_endstop_strength;               return true;
         case CFG_FFB_ENDSTOP_RANGE:
             *value_out = g_config.ffb_endstop_range;                  return true;
+
+        /* ── FFB Extended (611–628) ── */
+        case CFG_FFB_INPUT_FILTER_HZ:
+            *value_out = g_config.ffb_input_filter_hz;                return true;
+        case CFG_FFB_CENTER_BOOST_STR:
+            *value_out = g_config.ffb_center_boost_str;               return true;
+        case CFG_FFB_CENTER_BOOST_WIDTH:
+            *value_out = g_config.ffb_center_boost_width;             return true;
+        case CFG_FFB_STATIC_FRICTION:
+            *value_out = g_config.ffb_static_friction;                return true;
+        case CFG_FFB_STRIBECK_VEL:
+            *value_out = g_config.ffb_stribeck_vel;                   return true;
+        case CFG_FFB_INERTIA_FILTER_HZ:
+            *value_out = g_config.ffb_inertia_filter_hz;              return true;
+        case CFG_FFB_ENDSTOP_EXP:
+            *value_out = (float)g_config.ffb_endstop_exp;             return true;
+        case CFG_FFB_THERMAL_TAU:
+            *value_out = g_config.ffb_thermal_tau;                    return true;
+        case CFG_FFB_THERMAL_MIN:
+            *value_out = g_config.ffb_thermal_min;                    return true;
+        case CFG_FFB_LUT_EN:
+            *value_out = (float)g_config.ffb_lut_enabled;             return true;
+        case CFG_FFB_LUT_P0: *value_out = g_config.ffb_lut[0];        return true;
+        case CFG_FFB_LUT_P1: *value_out = g_config.ffb_lut[1];        return true;
+        case CFG_FFB_LUT_P2: *value_out = g_config.ffb_lut[2];        return true;
+        case CFG_FFB_LUT_P3: *value_out = g_config.ffb_lut[3];        return true;
+        case CFG_FFB_LUT_P4: *value_out = g_config.ffb_lut[4];        return true;
+        case CFG_FFB_LUT_P5: *value_out = g_config.ffb_lut[5];        return true;
+        case CFG_FFB_LUT_P6: *value_out = g_config.ffb_lut[6];        return true;
+        case CFG_FFB_LUT_P7: *value_out = g_config.ffb_lut[7];        return true;
 
         default:
             return false;

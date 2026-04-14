@@ -70,6 +70,26 @@ extern "C" {
 #define CFG_FFB_ENDSTOP_STRENGTH            609U  /* 0.0–1.0 — endstop counterforce    */
 #define CFG_FFB_ENDSTOP_RANGE               610U  /* 0.0–0.5 — fade zone (frac of lock)*/
 
+/* Force Feedback — Extended (professional grade) */
+#define CFG_FFB_INPUT_FILTER_HZ             611U  /* Hz — pre-DI input filter (0=off)  */
+#define CFG_FFB_CENTER_BOOST_STR            612U  /* 0.0–1.0 — center boost strength   */
+#define CFG_FFB_CENTER_BOOST_WIDTH          613U  /* turns — center boost half-width   */
+#define CFG_FFB_STATIC_FRICTION             614U  /* 0.0–1.0 — static (breakaway) fric */
+#define CFG_FFB_STRIBECK_VEL                615U  /* turns/s — Stribeck velocity        */
+#define CFG_FFB_INERTIA_FILTER_HZ           616U  /* Hz — accel derivative filter       */
+#define CFG_FFB_ENDSTOP_EXP                 617U  /* 1–4 — endstop fade curve exponent  */
+#define CFG_FFB_THERMAL_TAU                 618U  /* s — I²t thermal time constant      */
+#define CFG_FFB_THERMAL_MIN                 619U  /* 0.0–1.0 — min scale during derate  */
+#define CFG_FFB_LUT_EN                      620U  /* 0/1 — enable torque LUT            */
+#define CFG_FFB_LUT_P0                      621U  /* LUT point 0 (|t|=0.000) [0..1]    */
+#define CFG_FFB_LUT_P1                      622U  /* LUT point 1 (|t|=0.143) [0..1]    */
+#define CFG_FFB_LUT_P2                      623U  /* LUT point 2 (|t|=0.286) [0..1]    */
+#define CFG_FFB_LUT_P3                      624U  /* LUT point 3 (|t|=0.429) [0..1]    */
+#define CFG_FFB_LUT_P4                      625U  /* LUT point 4 (|t|=0.571) [0..1]    */
+#define CFG_FFB_LUT_P5                      626U  /* LUT point 5 (|t|=0.714) [0..1]    */
+#define CFG_FFB_LUT_P6                      627U  /* LUT point 6 (|t|=0.857) [0..1]    */
+#define CFG_FFB_LUT_P7                      628U  /* LUT point 7 (|t|=1.000) [0..1]    */
+
 /* ── Config struct ─────────────────────────────────────────────────────────── */
 typedef struct {
     /* Motor */
@@ -126,49 +146,108 @@ typedef struct {
     float   ffb_min_force;             /* 0.0–1.0 — minimum force dead-zone         */
     float   ffb_endstop_strength;      /* 0.0–1.0 — endstop counterforce fraction   */
     float   ffb_endstop_range;         /* 0.0–0.5 — fade zone as fraction of lock   */
+
+    /* Force Feedback — Extended (professional grade) */
+    float   ffb_input_filter_hz;       /* Hz — IIR filter on DI effects before gain  */
+    float   ffb_center_boost_str;      /* 0.0–1.0 — extra spring force near center   */
+    float   ffb_center_boost_width;    /* 0.0–1.0 normalized — fraction of lock half-range */
+    float   ffb_static_friction;       /* 0.0–1.0 — static breakaway friction coeff  */
+    float   ffb_stribeck_vel;          /* turns/s — vel where static→dynamic transits*/
+    float   ffb_inertia_filter_hz;     /* Hz — low-pass filter on accel derivative   */
+    int32_t ffb_endstop_exp;           /* 1–4 — endstop curve exponent (2=quadratic) */
+    float   ffb_thermal_tau;           /* s — I²t thermal model time constant        */
+    float   ffb_thermal_min;           /* 0.0–1.0 — minimum scale during derating    */
+    int32_t ffb_lut_enabled;           /* 0/1 — enable torque linearization LUT      */
+    float   ffb_lut[8];                /* LUT correction for |torque| ∈ [0..1]       */
 } ODriveConfig_t;
 
 /* Factory defaults */
 #define CONFIG_DEFAULT {                                \
-    .current_lim                   = 25.0f,           \
-    .torque_constant               = 0.5f,           \
-    .pole_pairs                    = 15,               \
-    .motor_type                    = 0,               \
-    .current_control_bandwidth     = 100.0f,          \
-    .calibration_current           = 4.0f,           \
-    .resistance_calib_max_voltage  = 2.0f,            \
-    .motor_pre_calibrated          = 0,               \
-    .phase_resistance              = 0.0f,            \
-    .phase_inductance              = 0.0f,            \
-    .encoder_cpr                   = 2400,            \  
-    .encoder_direction             = 1,               \
-    .encoder_offset                = 0.0f,            \
-    .encoder_mode                  = 0,               \
-    .encoder_bandwidth             = 100.0f,          \
-    .abs_spi_cs_gpio_pin           = 7,               \
-    .encoder_pre_calibrated        = 0,               \
-    .encoder_use_index             = 0,               \
-    .pos_gain                      = 20.0f,           \
-    .vel_gain                      = 0.16f,           \
-    .vel_integrator_gain           = 0.32f,           \
-    .vel_limit                     = 20000.0f,        \
-    .control_mode                  = 3,               \
-    .vbus_undervoltage             = 8.0f,            \
-    .vbus_overvoltage              = 24.0f,           \
-    .enable_brake_resistor         = 1,               \
-    .brake_resistance              = 12.0f,            \
-    .steering_max_lock             = 900.0f,          \
-    .ffb_max_torque                = 3.0f,            \
-    .ffb_gain                      = 1.0f,            \
-    .ffb_damping                   = 0.03f,           \
-    .ffb_friction                  = 0.01f,           \
-    .ffb_inertia                   = 0.02f,           \
-    .ffb_spring                    = 0.0f,            \
-    .ffb_slew_rate                 = 0.05f,           \
-    .ffb_filter_hz                 = 60.0f,           \
-    .ffb_min_force                 = 0.0f,            \
-    .ffb_endstop_strength          = 0.3f,            \
-    .ffb_endstop_range             = 0.08f,           \
+    .current_lim                   = 25.0f,             \
+    .torque_constant               = 0.5f,              \
+    .pole_pairs                    = 15,                \
+    .motor_type                    = 0,                 \
+    .current_control_bandwidth     = 100.0f,            \
+    .calibration_current           = 4.0f,              \
+    .resistance_calib_max_voltage  = 2.0f,              \
+    .motor_pre_calibrated          = 0,                 \
+    .phase_resistance              = 0.0f,              \
+    .phase_inductance              = 0.0f,              \
+    .encoder_cpr                   = 2400,              \
+    .encoder_direction             = 1,                 \
+    .encoder_offset                = 0.0f,              \
+    .encoder_mode                  = 0,                 \
+    .encoder_bandwidth             = 200.0f,            \
+
+    .abs_spi_cs_gpio_pin           = 7,                 \
+    .encoder_pre_calibrated        = 0,                 \
+    .encoder_use_index             = 0,                 \
+
+    /* Controller */
+    .pos_gain                      = 0.0f,              \
+    .vel_gain                      = 0.0f,              \
+    .vel_integrator_gain           = 0.0f,              \
+    .vel_limit                     = 20000.0f,          \
+    .control_mode                  = 1, /* TORQUE */    \
+
+    /* Power */
+    .vbus_undervoltage             = 8.0f,              \
+    .vbus_overvoltage              = 24.0f,             \
+    .enable_brake_resistor         = 1,                 \
+    .brake_resistance              = 12.0f,             \
+
+    /* Steering */
+    .steering_max_lock             = 900.0f,            \
+
+    /* ================= FFB CORE ================= */
+
+    .ffb_max_torque                = 3.0f,              \
+    .ffb_gain                      = 1.0f,              \
+    .ffb_min_force                 = 0.02f,             \
+
+    /* ================= EFFECTS ================= */
+
+    .ffb_damping                   = 0.08f,             \
+    .ffb_friction                  = 0.015f,            \
+    .ffb_inertia                   = 0.025f,            \
+    .ffb_spring                    = 0.05f,             \
+
+    /* ================= ADVANCED ================= */
+
+    .ffb_slew_rate                 = 0.08f,             \
+    .ffb_filter_hz                 = 80.0f,             \
+
+    /* ================= ENDSTOP ================= */
+
+    .ffb_endstop_strength          = 0.7f,              \
+    .ffb_endstop_range             = 0.08f,             \
+
+    /* ================= PRO FEATURES ================= */
+
+    .ffb_input_filter_hz           = 120.0f,            \
+
+    /* Center boost (leve e natural) */
+    .ffb_center_boost_str          = 0.1f,              \
+    .ffb_center_boost_width        = 0.12f,             \
+
+    /* Friction avançado */
+    .ffb_static_friction           = 0.02f,             \
+    .ffb_stribeck_vel              = 0.03f,             \
+
+    /* Inertia filtering */
+    .ffb_inertia_filter_hz         = 25.0f,             \
+
+    /* Endstop progressivo */
+    .ffb_endstop_exp               = 2.5f,              \
+
+    /* Thermal protection */
+    .ffb_thermal_tau               = 20.0f,             \
+    .ffb_thermal_min               = 0.5f,              \
+
+    /* LUT (desligado por padrão) */
+    .ffb_lut_enabled               = 0,                 \
+    .ffb_lut = {0.0000f, 0.12f, 0.26f, 0.40f,          \
+                0.55f, 0.70f, 0.85f, 1.0000f},         \
 }
 
 extern ODriveConfig_t g_config;

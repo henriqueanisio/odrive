@@ -101,6 +101,37 @@ typedef struct __attribute__((packed)) {
     uint8_t device_gain;           /* 0–255                                     */
 } FFB_DeviceGain_t;
 
+/* ── Per-cycle torque contribution debug record ─────────────────────────────
+ * Updated by ffb_compute_torque() every control cycle.
+ * Read from any task — fields are float, writes are atomic on Cortex-M4.
+ * Units: Nm throughout.                                                      */
+typedef struct {
+    /* DirectInput game effects (after game gain, before wheel gain)          */
+    float di_constant;       /* Constant Force effect sum                     */
+    float di_spring;         /* Spring (condition) effect sum                 */
+    float di_damper;         /* Damper (condition) effect sum                 */
+    float di_total;          /* DI sum after input filter × game gain         */
+
+    /* Firmware physical effects (before wheel gain)                          */
+    float phys_inertia;      /* Inertia  (−J × dω/dt)                        */
+    float phys_friction;     /* Friction (Stribeck model)                     */
+    float phys_damping;      /* Damping  (velocity-proportional)              */
+    float phys_spring;       /* Always-on center spring                       */
+    float phys_boost;        /* Center boost (fades with position)            */
+
+    /* Post-processing scalars                                                 */
+    float thermal_scale;     /* Current thermal derate factor [0..1]          */
+    float game_gain;         /* device_gain / 255.0 (set by game via HID)     */
+    float wheel_gain;        /* g_config.ffb_gain (set by user in GUI)        */
+
+    /* Final                                                                   */
+    float pre_lut;           /* Torque after slew/filter, before LUT          */
+    float output;            /* Final output (before endstops in caller)      */
+} FFB_DebugTorque_t;
+
+/* Updated every call to ffb_compute_torque(). Zero-cost to ignore. */
+extern FFB_DebugTorque_t g_ffb_debug;
+
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
 /* Call once at startup */

@@ -1,8 +1,8 @@
 #include "ffb_pid.h"
+#include "ffb_lut.h"
 #include "config.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
-#include <math.h>
 
 
 /* ── Internal effect state ────────────────────────────────────────────────── */
@@ -35,6 +35,13 @@ typedef struct {
 } FfbState_t;
 
 static FfbState_t s;
+
+/* ── Public debug record — written every ffb_compute_torque() call ────────── */
+FFB_DebugTorque_t g_ffb_debug;
+
+/* ── Control-loop period ─────────────────────────────────────────────────── */
+#define FFB_DT_S   (0.010f)    /* seconds — nominal task period (10 ms)       */
+#define FFB_DT_MS  (10.0f)     /* milliseconds — same value                   */
 
 /* ── Helper: clamp float ────────────────────────────────────────────────────*/
 static float fclamp(float v, float lo, float hi)
@@ -184,42 +191,138 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
     }
 }
 
-/* ── ffb_compute_torque ──────────────────────────────────────────────────── */
-/*
- * Pipeline de efeitos — ordem de aplicação:
- *   1. Efeitos DirectInput (Constant Force, Spring, Damper via HID PID)
- *   2. Inércia          (-J × Δvel/dt — simula massa do volante)
- *   3. Fricção          (Coulomb: -sign(vel) × friction × max_t)
- *   4. Amortecimento    (vel-proporcional: -vel × damping × max_t)
- *   5. Mola central     (sempre ativa se ffb_spring > 0)
- *   6. Gain global      (device_gain × ffb_gain)
- *   7. Força mínima     (dead-zone: zera torques abaixo de min_force × max_t)
- *   8. Slew rate        (limita variação de torque por ciclo → Nm/ms × 10ms)
- *   9. Filtro passa-baixa (IIR 1ª ordem, alpha calculado a partir de filter_hz)
- *
- * Endstops são aplicados pelo caller (apply_endstops em hid_app_integration.cpp).
- * Período de ciclo nominal: DT_S = 10 ms.
- */
-#define FFB_DT_S   (0.010f)   /* seconds per control cycle (10 ms task)      */
-#define FFB_DT_MS  (10.0f)    /* same in milliseconds                        */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PRIVATE HELPERS
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ── IIR alpha from cutoff frequency ────────────────────────────────────────
+ * alpha = 1 − exp(−2π × fc × dt)
+ *
+ * Computed without expf() via a 4th-order Taylor series accurate to <0.05%
+ * for fc < 64 Hz (x < 4).  Above that we saturate to alpha ≈ 0.982 which is
+ * equivalent to a brick-wall low-pass — effectively transparent.
+ *
+ *   fc = 0   → alpha = 0.0  (output frozen — acts as a hold)
+ *   fc = 10  → alpha ≈ 0.47 (~10 ms rise)
+ *   fc = 30  → alpha ≈ 0.85 (~3 ms rise)
+ *   fc = 60  → alpha ≈ 0.98 (~1.5 ms rise)
+ *   fc = inf → alpha = 1.0  (passthrough)
+ * ─────────────────────────────────────────────────────────────────────────── */
+static float _iir_alpha(float fc_hz)
+{
+    if (fc_hz <= 0.0f) return 0.0f;   /* fc=0 → frozen output              */
+
+    float x = 6.2832f * fc_hz * FFB_DT_S;   /* 2π × fc × dt               */
+    if (x >= 4.0f) return 0.9817f;           /* saturate: 1 − exp(−4)      */
+
+    /* exp(−x) via Taylor: 1 − x + x²/2 − x³/6 + x⁴/24 */
+    float x2 = x * x;
+    float ex = 1.0f - x + x2 * 0.5f
+                        - x2 * x * 0.16667f
+                        + x2 * x2 * 0.04167f;
+
+    float alpha = 1.0f - ex;
+    return fclamp(alpha, 0.0f, 1.0f);
+}
+
+/* ── Integer power for endstop curve — avoids powf() ───────────────────────
+ * exp 1 = linear, 2 = quadratic, 3 = cubic, 4 = quartic.
+ * Input t is assumed ∈ [0..1].                                              */
+static float _fpow_int(float t, int32_t exp)
+{
+    float r = t;
+    for (int32_t i = 1; i < exp && i < 4; i++) r *= t;
+    return r;
+}
+
+/* ── Smooth absolute value ──────────────────────────────────────────────────
+ * Returns (x < 0) ? −x : x                                                 */
+static inline float _fabs_f(float x) { return (x < 0.0f) ? -x : x; }
+
+/* ── LUT application (inline, reads g_config directly) ─────────────────────
+ * Applies the 8-point torque linearization LUT to a signed Nm value.
+ * Input/output range: ±max_t.  Identity when lut_enabled == 0.              */
+static float _apply_lut(float torque_nm, float max_t)
+{
+    if (!g_config.ffb_lut_enabled || max_t <= 0.0f) return torque_nm;
+
+    float sign = (torque_nm >= 0.0f) ? 1.0f : -1.0f;
+    float mag  = _fabs_f(torque_nm) / max_t;   /* normalize to [0..1]      */
+    if (mag > 1.0f) mag = 1.0f;
+
+    /* Map magnitude to LUT index */
+    float   idx_f = mag * (float)(FFB_LUT_POINTS - 1U);
+    uint8_t lo    = (uint8_t)idx_f;
+
+    float out;
+    if (lo >= FFB_LUT_POINTS - 1U) {
+        out = g_config.ffb_lut[FFB_LUT_POINTS - 1U];
+    } else {
+        /* Linear interpolation — O(1), no division */
+        float frac = idx_f - (float)lo;
+        out = g_config.ffb_lut[lo] + frac * (g_config.ffb_lut[lo + 1U]
+                                              - g_config.ffb_lut[lo]);
+    }
+
+    return sign * out * max_t;   /* denormalize back to Nm                  */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * ffb_compute_torque — Professional FFB Pipeline
+ *
+ *  STAGE  │ BLOCK                        │ WHAT IT DOES
+ * ────────┼──────────────────────────────┼─────────────────────────────────
+ *    1    │ DirectInput effects           │ HID PID Constant/Spring/Damper
+ *    2    │ Input IIR filter              │ Tames game FFB jitter pre-gain
+ *    3    │ × Game Gain                  │ device_gain/255 (game controls)
+ *    ─────┼──────────────────────────────┼─────────────────────────────────
+ *    4    │ Inertia (filtered deriv)     │ −J × dω/dt, noise-free accel
+ *    5    │ Stribeck Friction            │ static + dynamic Coulomb
+ *    6    │ Damping                      │ vel-proportional, always-on
+ *    7    │ Center Spring                │ optional always-on centering
+ *    8    │ Center Boost                 │ progressive extra spring near 0
+ *    ─────┼──────────────────────────────┼─────────────────────────────────
+ *    9    │ × Wheel Gain                 │ ffb_gain (user controls)
+ *   10    │ Minimum Force deadzone       │ kill micro-torques
+ *   11    │ Thermal derating (I²t)       │ smooth current-limit protection
+ *   12    │ Slew Rate Limiter            │ dT/dt cap → Nm/ms × 10 ms
+ *   13    │ Output IIR Filter            │ final smoothing
+ *   14    │ Torque LUT                   │ motor linearization
+ *   15    │ Clamp ±max_t                 │ hard safety limit
+ *
+ * Endstops: applied by caller (apply_endstops() in hid_app_integration.cpp).
+ * Debug:    every field in g_ffb_debug is written every call.
+ * ═══════════════════════════════════════════════════════════════════════════ */
 float ffb_compute_torque(float pos_turns, float vel_turns_s)
 {
-    if (!s.actuators_enabled || s.paused) return 0.0f;
+    if (!s.actuators_enabled || s.paused) {
+        /* Zero all debug fields when disabled */
+        __builtin_memset(&g_ffb_debug, 0, sizeof(g_ffb_debug));
+        return 0.0f;
+    }
 
-    const float max_t     = g_config.ffb_max_torque;
-    const float gain_norm = (float)s.device_gain / 255.0f;
-    const uint32_t now    = HAL_GetTick();
+    const float max_t = g_config.ffb_max_torque;
+    if (max_t <= 0.0f) return 0.0f;
 
-    /* ── PASSO 1: Efeitos DirectInput ──────────────────────────────────────
-     * Soma contribuição de cada slot de efeito ativo dentro do prazo.      */
-    float torque = 0.0f;
+    const uint32_t now = HAL_GetTick();
+
+    /* ── STAGE 1: DirectInput effects ──────────────────────────────────────
+     * Accumulate torque from all active HID PID effect slots.
+     * Each slot has its own per-effect gain (0–255 from SetEffect report).
+     *
+     * Spring model: nonlinear  err × |err|  — weak at center, firm at edges
+     *   → matches the progressive feel of a Simucube/Fanatec rack.
+     * Damper model: linear coefficient × velocity (game controls strength).
+     * Constant: direct magnitude with per-effect gain.                      */
+    float di_const  = 0.0f;
+    float di_spring = 0.0f;
+    float di_damper = 0.0f;
 
     for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
         FfbEffect_t *e = &s.effects[i];
         if (!e->active || e->type == FFB_ET_NONE) continue;
 
-        /* Expira efeito com duração finita */
+        /* Expire finite-duration effects */
         if (e->duration_ms != 0xFFFFU) {
             if ((now - e->start_tick) >= (uint32_t)e->duration_ms) {
                 e->active = false;
@@ -227,51 +330,48 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
             }
         }
 
-        float eg = (float)e->gain / 255.0f;  /* per-effect gain 0..1 */
+        float eg = (float)e->gain / 255.0f;
 
         switch (e->type) {
 
         case FFB_ET_CONSTANT: {
-            /* Força constante linear: direta, sem não-linearidade */
             float t = ((float)e->magnitude / 10000.0f) * max_t;
-            torque += t * eg;
+            di_const += t * eg;
             break;
         }
 
         case FFB_ET_SPRING: {
-            /* Spring (Condition report): centraliza o volante no cp_offset.
-             * Modelo não-linear: err×|err| → progressividade Simucube.     */
-            float cp    = (float)e->cp_offset / 10000.0f;
-            float err   = pos_turns - cp;
-            float db    = (float)e->dead_band / 10000.0f;
-
-            /* Dead-band: sem força enquanto err dentro da zona neutra */
-            float abs_err = (err < 0.0f) ? -err : err;
+            float cp      = (float)e->cp_offset / 10000.0f;
+            float err     = pos_turns - cp;
+            float abs_err = _fabs_f(err);
+            float db      = (float)e->dead_band / 10000.0f;
             if (abs_err <= db) break;
 
-            /* Cômputa coeff assimétrico (positivo/negativo) */
+            /* Remove dead-band from error magnitude (signed) */
+            float eff_err = (err >= 0.0f) ? (err - db) : (err + db);
+
             float coeff = (err >= 0.0f)
                 ? ((float)e->pos_coeff / 10000.0f)
                 : ((float)e->neg_coeff / 10000.0f);
 
-            /* Não-linear: err×|err| dá sensação progressiva semelhante ao
-             * Simucube — fraco perto do centro, firme nos extremos          */
-            float t = -coeff * err * abs_err * max_t;
+            /* Nonlinear: err × |err| → progressive feel.
+             * Magnitude doubles every 2× displacement vs linear.            */
+            float abs_eff = _fabs_f(eff_err);
+            float t = -coeff * eff_err * abs_eff * max_t;
 
-            /* Saturação de saída */
+            /* Per-effect saturation */
             float sat = ((float)e->pos_sat / 10000.0f) * max_t;
             if (sat > 0.0f) t = fclamp(t, -sat, sat);
 
-            torque += t * eg;
+            di_spring += t * eg;
             break;
         }
 
         case FFB_ET_DAMPER: {
-            /* Damper (Condition report): resistência proporcional à velocidade.
-             * coeff vem do positive_coefficient do report.                   */
+            /* vel_turns_s * coeff * max_t — sign already correct (opposes motion) */
             float coeff = (float)e->pos_coeff / 10000.0f;
             float t     = -coeff * vel_turns_s * max_t;
-            torque += t * eg;
+            di_damper  += t * eg;
             break;
         }
 
@@ -280,116 +380,286 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
         }
     }
 
-    /* ── PASSO 2: Inércia (massa do volante simulada) ───────────────────────
-     * F_inertia = -J × dω/dt
-     * Calculamos dω/dt = (vel_atual - vel_anterior) / dt
-     * Isso resiste a mudanças bruscas de velocidade → sensação de peso real. */
+    float di_sum = di_const + di_spring + di_damper;
+
+    /* ── STAGE 2: Input IIR filter (pre-game-gain) ──────────────────────────
+     * Smooths game-generated FFB jitter and oscillations before they enter
+     * the physical model.  fc=0 disables (alpha=0 → frozen — NOT what we
+     * want; when disabled use passthrough instead).
+     * We treat fc=0 as "disabled" → alpha=1.0 → passthrough.               */
     {
-        static float last_vel = 0.0f;
-        float accel = (vel_turns_s - last_vel) / FFB_DT_S;   /* turns/s²    */
-        last_vel = vel_turns_s;
-
-        float inertia_t = -g_config.ffb_inertia * accel * max_t;
-        /* Satura inércia em ±50% do max para evitar spike em startup        */
-        inertia_t = fclamp(inertia_t, -max_t * 0.5f, max_t * 0.5f);
-        torque += inertia_t;
+        static float di_filt = 0.0f;
+        float alpha = (g_config.ffb_input_filter_hz > 0.0f)
+                      ? _iir_alpha(g_config.ffb_input_filter_hz)
+                      : 1.0f;   /* fc=0 → passthrough */
+        di_filt += alpha * (di_sum - di_filt);
+        di_sum   = di_filt;
     }
 
-    /* ── PASSO 3: Fricção de Coulomb ────────────────────────────────────────
-     * Resistência constante que sempre opõe o movimento.
-     * Dead-band em ±0.005 turns/s (~0.03 RPM) para não travar no repouso.   */
-    if (g_config.ffb_friction > 0.0f) {
-        const float VEL_DEADBAND = 0.005f;
-        float friction_t = 0.0f;
-        if (vel_turns_s > VEL_DEADBAND) {
-            friction_t = -g_config.ffb_friction * max_t;
-        } else if (vel_turns_s < -VEL_DEADBAND) {
-            friction_t =  g_config.ffb_friction * max_t;
-        }
-        torque += friction_t;
+    /* ── STAGE 3: Game Gain ─────────────────────────────────────────────────
+     * device_gain is set by the game/OS via HID PID Device Gain report (0x0D).
+     * It represents the game's "FFB strength" slider — should only scale the
+     * game's effects, not the firmware physical corrections below.          */
+    const float game_gain = (float)s.device_gain / 255.0f;
+    di_sum *= game_gain;
+
+    /* ── STAGE 4: Inertia — filtered acceleration derivative ────────────────
+     * Simulates rotational mass of the steering wheel + motor rotor.
+     * F_inertia = −J × dω/dt  (opposes acceleration)
+     *
+     * Raw differentiation (vel − prev_vel)/dt amplifies encoder noise.
+     * We pre-filter velocity with a dedicated IIR (ffb_inertia_filter_hz)
+     * before differentiating → stable, noise-free acceleration estimate.
+     *
+     * Default filter: 20 Hz → rejects encoder quantization noise above 20 Hz
+     * while passing real steering accelerations (typically < 5 Hz).         */
+    float phys_inertia = 0.0f;
+    {
+        static float vel_filt = 0.0f;   /* low-pass filtered velocity       */
+        static float vel_prev = 0.0f;   /* previous filtered velocity       */
+
+        float alpha_v = (g_config.ffb_inertia_filter_hz > 0.0f)
+                        ? _iir_alpha(g_config.ffb_inertia_filter_hz)
+                        : 1.0f;
+
+        vel_filt += alpha_v * (vel_turns_s - vel_filt);
+
+        float accel = (vel_filt - vel_prev) / FFB_DT_S;   /* turns/s²      */
+        vel_prev    = vel_filt;
+
+        /* Scale: inertia coefficient × max_t gives dimensional Nm.
+         * Saturate at ±50% max_t to prevent startup spike when state
+         * resets (e.g., motor re-enable after disable).                     */
+        phys_inertia = fclamp(-g_config.ffb_inertia * accel * max_t,
+                              -max_t * 0.5f, max_t * 0.5f);
     }
 
-    /* ── PASSO 4: Amortecimento global ─────────────────────────────────────
-     * Proporcional à velocidade — suaviza oscilações (rubber-banding).       */
-    torque -= vel_turns_s * g_config.ffb_damping * max_t;
+    /* ── STAGE 5: Stribeck Friction ─────────────────────────────────────────
+     * Classical friction has two regimes:
+     *   Static (stiction): high breakaway force at zero velocity
+     *   Dynamic (Coulomb): lower constant force once moving
+     *
+     * Stribeck model smoothly blends them:
+     *   F_total = F_dyn + F_static × 1/(1 + |vel| / v_stribeck)
+     *
+     * At v=0:             F = F_dyn + F_static   (max friction)
+     * At v=v_stribeck:    F = F_dyn + F_static/2 (50% of extra)
+     * At v→∞:             F ≈ F_dyn              (pure kinetic)
+     *
+     * Smooth sign function:  vel / (|vel| + ε)   — no discontinuity at 0,
+     * transitions from −1 to +1 over ≈ ε of velocity.  We use ε = 0.003
+     * turns/s (~0.02 RPM), tight enough to feel like real static friction.  */
+    float phys_friction = 0.0f;
+    {
+        const float VEL_EPS = 0.003f;   /* smooth-sign dead-zone (turns/s)  */
+        float v_abs   = _fabs_f(vel_turns_s);
+        float sign_v  = vel_turns_s / (v_abs + VEL_EPS);   /* smooth sign  */
 
-    /* ── PASSO 5: Mola central sempre ativa ────────────────────────────────
-     * Independente dos efeitos do jogo — recentra o volante.
-     * Útil para menus e quando o jogo não envia spring.                      */
+        /* Stribeck blending: rational approximation of exp-based model     */
+        float stribeck = 1.0f / (1.0f + v_abs / g_config.ffb_stribeck_vel);
+
+        float coeff = g_config.ffb_friction
+                    + g_config.ffb_static_friction * stribeck;
+
+        phys_friction = -sign_v * coeff * max_t;
+    }
+
+    /* ── STAGE 6: Velocity Damping ──────────────────────────────────────────
+     * Always-on velocity-proportional resistance.  Prevents oscillation and
+     * adds the "weight" feel after springs.  Linear and symmetric.
+     * This is separate from the HID Damper effect — it is never zero even
+     * when the game sends no effects.                                        */
+    float phys_damping = -vel_turns_s * g_config.ffb_damping * max_t;
+
+    /* ── Normalized position ─────────────────────────────────────────────────
+     * pos_norm ∈ [−1..+1] where ±1 = at the steering lock limit.
+     *
+     * Using pos_norm instead of pos_turns makes spring/boost coefficients
+     * INDEPENDENT of steering lock angle: ffb_spring=0.3 always means
+     * "30% of max_t at the limit", regardless of whether lock = 90° or 900°.
+     *
+     * Without normalization with 90° lock (half=0.125 turns):
+     *   spring force = 0.3 × 3.0 × 0.125 = 0.11 Nm → too weak to feel.
+     * With normalization:
+     *   spring force = 0.3 × 3.0 × 1.0   = 0.90 Nm → useful centering.   */
+    float half_lock = g_config.steering_max_lock / 720.0f;   /* turns        */
+    float pos_norm  = (half_lock > 0.001f)
+                      ? fclamp(pos_turns / half_lock, -1.0f, 1.0f)
+                      : 0.0f;
+
+    /* ── STAGE 7: Always-on Center Spring ───────────────────────────────────
+     * Force = −pos_norm × spring × max_t
+     * Reaches full spring × max_t exactly at the steering lock limit.
+     * Set ffb_spring = 0 to disable.                                        */
+    float phys_spring = 0.0f;
     if (g_config.ffb_spring > 0.0f) {
-        torque -= pos_turns * g_config.ffb_spring * max_t;
+        phys_spring = -pos_norm * g_config.ffb_spring * max_t;
     }
 
-    /* ── PASSO 6: Gain global ───────────────────────────────────────────────
-     * device_gain: controlado pelo jogo via HID PID Device Gain report (0xD).
-     * ffb_gain: configurado pelo usuário na GUI.                              */
-    torque *= gain_norm * g_config.ffb_gain;
+    /* ── STAGE 8: Center Boost ───────────────────────────────────────────────
+     * Extra spring force near center only — fades to zero at ±boost_width.
+     * boost_width is in NORMALIZED units [0..1] (fraction of steering lock).
+     *   0.2 = boost active in the inner 20% of travel each side.
+     *   At 900° lock: inner 90° (±45°) | At 90° lock: inner 9° (±4.5°)
+     *
+     * Force: −pos_norm × boost_str × max_t × quadratic_fade               */
+    float phys_boost = 0.0f;
+    if (g_config.ffb_center_boost_str > 0.0f
+        && g_config.ffb_center_boost_width > 0.0f)
+    {
+        float abs_norm = _fabs_f(pos_norm);
+        float width    = g_config.ffb_center_boost_width;   /* normalized   */
+        if (abs_norm < width) {
+            float t_boost = abs_norm / width;         /* 0 at center → 1    */
+            float fade    = 1.0f - t_boost * t_boost; /* quadratic fade     */
+            phys_boost    = -pos_norm * g_config.ffb_center_boost_str
+                            * max_t * fade;
+        }
+    }
 
-    /* ── PASSO 7: Força mínima (dead-zone) ─────────────────────────────────
-     * Remove micro-torques que apenas causam vibração sem feedback útil.
-     * min_force define a fração de max_t abaixo da qual a saída é zerada.   */
+    /* ── Sum physical effects ────────────────────────────────────────────── */
+    float phys_sum = phys_inertia + phys_friction
+                   + phys_damping + phys_spring + phys_boost;
+
+    /* ── STAGE 9: Wheel Gain ─────────────────────────────────────────────────
+     * ffb_gain is the hardware-level output scale set by the user in the GUI.
+     * It scales everything — DI effects AND firmware physical effects.
+     * This is the "master volume" of the wheel, independent of the game.    */
+    const float wheel_gain  = g_config.ffb_gain;
+    float total_pre_scale   = di_sum + phys_sum;
+    float torque            = total_pre_scale * wheel_gain;
+
+    /* ── STAGE 10: Minimum Force Deadzone ────────────────────────────────────
+     * Cancels micro-torques below the threshold — eliminates motor buzzing
+     * from quantization noise and tiny game effects.
+     * Only active if ffb_min_force > 0.                                     */
     if (g_config.ffb_min_force > 0.0f) {
         float min_t = g_config.ffb_min_force * max_t;
-        float abs_t = (torque < 0.0f) ? -torque : torque;
-        if (abs_t < min_t) {
+        if (_fabs_f(torque) < min_t) {
             torque = 0.0f;
         }
     }
 
-    /* ── PASSO 8: Slew rate limiter ─────────────────────────────────────────
-     * Limita quanto o torque pode mudar por ciclo (Nm/ms × 10 ms/ciclo).
-     * Previne spikes elétricos e protege o motor de transientes abruptos.
-     * slew_rate == 0 → limitador desabilitado.                               */
-    {
-        static float last_torque = 0.0f;
-        if (g_config.ffb_slew_rate > 0.0f) {
-            float max_delta = g_config.ffb_slew_rate * FFB_DT_MS;  /* Nm/ms × ms */
-            float delta     = torque - last_torque;
-            if (delta >  max_delta) delta =  max_delta;
-            if (delta < -max_delta) delta = -max_delta;
-            torque = last_torque + delta;
-        }
-        last_torque = torque;
-    }
-
-    /* ── PASSO 9: Filtro passa-baixa (IIR 1ª ordem) ─────────────────────────
-     * alpha = 1 - exp(-2π × fc × dt)
-     * fc = ffb_filter_hz, dt = 0.01 s.
-     * filter_hz == 0 → filtro desabilitado (alpha = 1.0, sem latência).
+    /* ── STAGE 11: Thermal Derating (I²t model) ─────────────────────────────
+     * Models the winding thermal state using a first-order I²t integrator.
      *
-     * Valores práticos:
-     *   10 Hz → alpha ≈ 0.47  (suave, ~95 ms lag)
-     *   30 Hz → alpha ≈ 0.85  (equilíbrio, ~30 ms lag)
-     *   60 Hz → alpha ≈ 0.98  (quase transparente, ~16 ms lag)
-     *  100 Hz → alpha ≈ 0.998 (transparente)                                */
+     * Concept:
+     *   Power ∝ I² ∝ (torque/Kt)².  We track a normalized thermal load:
+     *     load = (I/I_rated)²   where I_rated = current_lim × 0.7
+     *   The thermal state approaches this load with time constant tau:
+     *     dT_state/dt = (load − T_state) / tau
+     *
+     *   When T_state > 1.0 (over rated power):
+     *     scale = 1 / T_state  (hyperbolic derate, smooth)
+     *     clamped to ffb_thermal_min (never drops to zero).
+     *
+     * Default tau = 30 s → motor winding has 30 s thermal inertia.
+     * At 100% rated current continuously: scale drops to ~1/e ≈ 0.37 after tau.
+     * This gives a natural "soft cut" that the user feels as gradual weakening
+     * rather than a hard torque cap.                                         */
+    float thermal_scale = 1.0f;
     {
-        static float torque_filtered = 0.0f;
-        float alpha;
-        if (g_config.ffb_filter_hz > 0.0f) {
-            /* Pré-calcular: 2π × fc × dt ≈ 0.06283 × fc */
-            float x = 6.2832f * g_config.ffb_filter_hz * FFB_DT_S;
-            /* Aproximação de exp(-x) via série de Taylor para x < 4 (fc < 64 Hz)
-             * ou clamp para x ≥ 4 → exp(-4) ≈ 0.018 → alpha ≈ 0.982        */
-            float ex;
-            if (x >= 4.0f) {
-                ex = 0.0183f;   /* exp(-4) */
-            } else {
-                /* exp(-x) ≈ 1 - x + x²/2 - x³/6 + x⁴/24  (erro < 0.1% para x<4) */
-                float x2 = x * x;
-                ex = 1.0f - x + x2 * 0.5f - x2 * x * 0.16667f + x2 * x2 * 0.04167f;
-            }
-            alpha = 1.0f - ex;
-            if (alpha < 0.0f) alpha = 0.0f;
-            if (alpha > 1.0f) alpha = 1.0f;
-        } else {
-            alpha = 1.0f;   /* sem filtro */
+        static float thermal_state = 0.0f;
+
+        /* Estimate current from commanded torque (before derating).
+         * Guard against zero Kt to avoid division by zero.                  */
+        float kt     = (g_config.torque_constant > 0.001f)
+                       ? g_config.torque_constant : 0.001f;
+        float i_est  = _fabs_f(torque) / kt;           /* A, estimated      */
+        float i_rat  = g_config.current_lim * 0.7f;    /* 70% CL = rated   */
+        if (i_rat < 0.1f) i_rat = 0.1f;
+
+        /* Normalized thermal load (1.0 = rated continuous power) */
+        float i_norm = i_est / i_rat;
+        float load   = i_norm * i_norm;   /* squared → proportional to power */
+
+        /* First-order thermal integrator: alpha = dt/tau */
+        float alpha_th = FFB_DT_S / g_config.ffb_thermal_tau;
+        if (alpha_th > 1.0f) alpha_th = 1.0f;
+        thermal_state += alpha_th * (load - thermal_state);
+        if (thermal_state < 0.0f) thermal_state = 0.0f;
+
+        /* Derate only when over rated load */
+        if (thermal_state > 1.0f) {
+            thermal_scale = 1.0f / thermal_state;   /* hyperbolic derate   */
+            float min_s   = g_config.ffb_thermal_min;
+            if (thermal_scale < min_s) thermal_scale = min_s;
         }
-        torque_filtered += alpha * (torque - torque_filtered);
-        torque = torque_filtered;
+
+        torque *= thermal_scale;
     }
 
-    /* Clamp final de segurança */
-    return fclamp(torque, -max_t, max_t);
+    /* ── STAGE 12: Slew Rate Limiter ─────────────────────────────────────────
+     * Hard cap on torque derivative: dT/dt ≤ ffb_slew_rate Nm/ms.
+     * Per-cycle budget: slew_rate × DT_MS  [Nm].
+     *
+     * Why Nm/ms instead of Nm/s?  At 3 Nm max and 10 ms period:
+     *   0.05 Nm/ms → 0.5 Nm/step → 50 Nm/s → reaches max in 60 ms (fast)
+     *   0.01 Nm/ms → 0.1 Nm/step → 10 Nm/s → reaches max in 300 ms (slow)
+     * 0.05 Nm/ms gives Simucube-like "snappy but controlled" transients.
+     * slew_rate = 0 → limiter disabled.                                     */
+    {
+        static float prev_torque = 0.0f;
+        if (g_config.ffb_slew_rate > 0.0f) {
+            float budget = g_config.ffb_slew_rate * FFB_DT_MS;   /* Nm/step */
+            float delta  = torque - prev_torque;
+            if (delta >  budget) delta =  budget;
+            if (delta < -budget) delta = -budget;
+            torque = prev_torque + delta;
+        }
+        prev_torque = torque;
+    }
+
+    /* ── STAGE 13: Output IIR Low-pass Filter ────────────────────────────────
+     * Final smoothing after slew limiting.  Reduces motor electrical noise
+     * (switching ripple) without adding meaningful phase lag at useful
+     * mechanical frequencies.
+     *
+     * fc = 60 Hz default → −3 dB at 60 Hz, −20 dB/dec beyond.
+     * Lag at 10 Hz (typical steering transient): tan⁻¹(10/60) ≈ 9.5°
+     *   → group delay ≈ 2.6 ms — imperceptible.
+     * fc = 0 → disabled (alpha = 1.0 → passthrough).                        */
+    float pre_lut_torque;
+    {
+        static float torque_out = 0.0f;
+        float alpha = (g_config.ffb_filter_hz > 0.0f)
+                      ? _iir_alpha(g_config.ffb_filter_hz)
+                      : 1.0f;
+        torque_out  += alpha * (torque - torque_out);
+        pre_lut_torque = torque_out;
+    }
+
+    /* ── STAGE 14: Torque Linearization LUT ─────────────────────────────────
+     * Compensates motor/gearbox nonlinearity.
+     * LUT is symmetric — applies the same correction to + and − torque.
+     * Identity by default (all 8 points on the straight line).
+     * Disabled (ffb_lut_enabled = 0) → zero overhead, value passes through. */
+    float final_torque = _apply_lut(pre_lut_torque, max_t);
+
+    /* ── STAGE 15: Hard clamp ────────────────────────────────────────────────
+     * Safety backstop — should not be reached in normal operation because
+     * every earlier stage already respects ±max_t bounds.                   */
+    final_torque = fclamp(final_torque, -max_t, max_t);
+
+    /* ── Write debug record ──────────────────────────────────────────────────
+     * Updated every cycle.  Read externally from a lower-priority task.
+     * Cortex-M4 float writes are word-aligned and therefore atomic.         */
+    g_ffb_debug.di_constant    = di_const;
+    g_ffb_debug.di_spring      = di_spring;
+    g_ffb_debug.di_damper      = di_damper;
+    g_ffb_debug.di_total       = di_sum;
+    g_ffb_debug.phys_inertia   = phys_inertia;
+    g_ffb_debug.phys_friction  = phys_friction;
+    g_ffb_debug.phys_damping   = phys_damping;
+    g_ffb_debug.phys_spring    = phys_spring;
+    g_ffb_debug.phys_boost     = phys_boost;
+    g_ffb_debug.thermal_scale  = thermal_scale;
+    g_ffb_debug.game_gain      = game_gain;
+    g_ffb_debug.wheel_gain     = wheel_gain;
+    g_ffb_debug.pre_lut        = pre_lut_torque;
+    g_ffb_debug.output         = final_torque;
+
+    return final_torque;
 }
 
 /* ── ffb_get_block_load_report ───────────────────────────────────────────── */

@@ -345,28 +345,82 @@ extern "C" void hid_send_telemetry(void)
  * applies a small counterforce when at or past the hard limit.
  * pos_turns is relative to home (+ = right, − = left).
  * ─────────────────────────────────────────────────────────────────────────── */
+/* ── Integer power: avoids powf() on Cortex-M4 ─────────────────────────────
+ * exp 1=linear, 2=quadratic, 3=cubic, 4=quartic.  t assumed ∈ [0..1].      */
+static float _endstop_pow(float t, int32_t exp_i)
+{
+    float r = t;
+    for (int32_t i = 1; i < exp_i && i < 4; i++) r *= t;
+    return r;
+}
+
+/* ── apply_endstops ──────────────────────────────────────────────────────────
+ * Progressive soft endstop model:
+ *
+ *   inner ──────── fade zone ──────── limit
+ *                   ↑                  ↑
+ *              fade starts        hard wall
+ *
+ * In the fade zone:
+ *   t ∈ [0..1]  where 0 = inner edge, 1 = hard limit
+ *   fade = 1 − t^exp   (configurable exponent: 1=linear, 2=quadratic…)
+ *   torque_out_dir *= fade    (only attenuates force pushing further out)
+ *
+ * At hard limit (t ≥ 1):
+ *   Full counterforce: ±ffb_max_torque × ffb_endstop_strength
+ *   Direction always toward center.
+ *
+ * The progressive curve (exp=2 default) means:
+ *   • Very little resistance until 80% into the fade zone
+ *   • Strongly nonlinear near the limit — feels like hitting a rubber wall
+ *   • No abrupt force discontinuity anywhere                                 */
 static float apply_endstops(float torque, float pos_turns)
 {
-    float limit    = g_config.steering_max_lock / 720.0f;    /* half-range in turns         */
-    float range    = g_config.ffb_endstop_range;             /* fade zone fraction [0..0.5] */
-    float strength = g_config.ffb_endstop_strength;          /* counterforce fraction [0..1]*/
-    float zone     = limit * range;                          /* absolute fade zone (turns)  */
-    float inner    = limit - zone;                           /* inner edge of fade zone     */
+    float   limit    = g_config.steering_max_lock / 720.0f;
+    float   range    = g_config.ffb_endstop_range;
+    float   strength = g_config.ffb_endstop_strength;
+    int32_t exp_i    = g_config.ffb_endstop_exp;
+    float   zone     = limit * range;
+    float   inner    = limit - zone;
+
+    /* Clamp exponent to valid range (should already be validated in config_set) */
+    if (exp_i < 1) exp_i = 1;
+    if (exp_i > 4) exp_i = 4;
 
     if (pos_turns > inner) {
-        /* Zona de endstop direita: atenua torque positivo progressivamente */
-        float t = (zone > 0.0f) ? ((pos_turns - inner) / zone) : 1.0f;
-        if (t > 1.0f) t = 1.0f;
-        if (torque > 0.0f) torque *= (1.0f - t);
-        /* No limite duro: contraforca configurável empurra de volta ao centro */
-        if (pos_turns >= limit) torque = -(g_config.ffb_max_torque * strength);
+        /* ── Right endstop ── */
+        if (pos_turns >= limit) {
+            /* Past hard limit: full progressive counterforce toward center */
+            float excess = pos_turns - limit;           /* turns past limit */
+            /* Build-up: counterforce grows linearly with penetration depth  */
+            float cf = strength * g_config.ffb_max_torque
+                     + excess * g_config.ffb_max_torque; /* progressive     */
+            torque = -fminf(cf, g_config.ffb_max_torque);
+        } else if (zone > 0.0f) {
+            /* In fade zone: attenuate outward torque progressively */
+            float t    = (pos_turns - inner) / zone;   /* 0→1 into zone     */
+            float fade = 1.0f - _endstop_pow(t, exp_i);
+            if (torque > 0.0f) torque *= fade;
+            /* Add partial counterforce proportional to penetration */
+            torque -= _endstop_pow(t, exp_i)
+                    * strength * g_config.ffb_max_torque * 0.5f;
+        }
     } else if (pos_turns < -inner) {
-        /* Zona de endstop esquerda: espelho simétrico */
-        float t = (zone > 0.0f) ? ((-pos_turns - inner) / zone) : 1.0f;
-        if (t > 1.0f) t = 1.0f;
-        if (torque < 0.0f) torque *= (1.0f - t);
-        if (pos_turns <= -limit) torque = (g_config.ffb_max_torque * strength);
+        /* ── Left endstop (mirror) ── */
+        if (pos_turns <= -limit) {
+            float excess = (-pos_turns) - limit;
+            float cf = strength * g_config.ffb_max_torque
+                     + excess * g_config.ffb_max_torque;
+            torque = fminf(cf, g_config.ffb_max_torque);
+        } else if (zone > 0.0f) {
+            float t    = (-pos_turns - inner) / zone;
+            float fade = 1.0f - _endstop_pow(t, exp_i);
+            if (torque < 0.0f) torque *= fade;
+            torque += _endstop_pow(t, exp_i)
+                    * strength * g_config.ffb_max_torque * 0.5f;
+        }
     }
+
     return torque;
 }
 
@@ -451,6 +505,23 @@ extern "C" void hid_app_init(void)
      * detect a "change" for AMS/SPI modes and cause an infinite reboot loop. */
     app_apply_config_core();
 
+    /* ── app_ffb_test_on ─────────────────────────────────────────────────────
+     * Enables FFB actuators directly from the GUI (no DirectInput game needed).
+     * Allows testing spring/endstop/damping effects on the bench.
+     * The motor MUST be in CLOSED_LOOP_CONTROL for any torque to be applied.  */
+    static auto app_ffb_test_on = []() {
+        uint8_t cmd = FFB_DC_ENABLE_ACTUATORS;
+        ffb_process_report(FFB_REPORT_DEVICE_CONTROL, &cmd, 1U);
+    };
+
+    static auto app_ffb_test_off = []() {
+        /* Stop all effects then disable actuators — clean state */
+        uint8_t stop = FFB_DC_STOP_ALL_EFFECTS;
+        ffb_process_report(FFB_REPORT_DEVICE_CONTROL, &stop, 1U);
+        uint8_t dis  = FFB_DC_DISABLE_ACTUATORS;
+        ffb_process_report(FFB_REPORT_DEVICE_CONTROL, &dis,  1U);
+    };
+
     static const ProtocolCallbacks_t cb = {
         .set_axis_state = app_set_axis_state,
         .set_input_pos  = app_set_input_pos,
@@ -459,6 +530,8 @@ extern "C" void hid_app_init(void)
         .apply_config   = app_apply_config,
         .set_home       = app_set_home,
         .save_config    = app_save_config,
+        .ffb_test_on    = app_ffb_test_on,
+        .ffb_test_off   = app_ffb_test_off,
     };
     protocol_init(&cb);
 }

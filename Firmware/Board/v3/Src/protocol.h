@@ -44,6 +44,8 @@ extern "C" {
 #define CALL_SET_IDLE               6U
 #define CALL_APPLY_CONFIG           7U  /* apply g_config to ODrive live objects */
 #define CALL_SET_HOME               8U  /* capture current pos as position zero  */
+#define CALL_FFB_TEST_ON            9U  /* enable FFB actuators (test without game) */
+#define CALL_FFB_TEST_OFF           10U /* disable FFB actuators / stop test mode  */
 
 /* ── Command payload (Feature Report payload, 8 bytes) ─────────────────────── */
 typedef struct __attribute__((packed)) {
@@ -67,6 +69,8 @@ typedef enum {
     PENDING_CALL_SET_IDLE       = CALL_SET_IDLE,
     PENDING_CALL_APPLY_CONFIG   = CALL_APPLY_CONFIG,
     PENDING_CALL_SET_HOME       = CALL_SET_HOME,
+    PENDING_CALL_FFB_TEST_ON    = CALL_FFB_TEST_ON,
+    PENDING_CALL_FFB_TEST_OFF   = CALL_FFB_TEST_OFF,
 } PendingCall_t;
 
 extern volatile PendingCall_t g_pending_call;
@@ -85,6 +89,8 @@ typedef struct {
     void (*apply_config)  (void);  /* copy g_config → ODrive live objects */
     void (*set_home)      (void);  /* capture current position as zero reference */
     void (*save_config)   (void);  /* persist config to flash (handles post-erase errors) */
+    void (*ffb_test_on)   (void);  /* enable FFB actuators for bench testing */
+    void (*ffb_test_off)  (void);  /* disable FFB actuators / end test mode  */
 } ProtocolCallbacks_t;
 
 /* ── Public API ──────────────────────────────────────────────────────────────── */
