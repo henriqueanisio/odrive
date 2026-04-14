@@ -18,6 +18,7 @@ extern "C" {
 
 #define HID_EPIN_ADDR               0x81U
 #define HID_EPIN_SIZE               0x40U  /* 64 bytes — covers all report sizes */
+#define HID_EPOUT_SIZE              0x40U
 #define HID_FS_BINTERVAL            0x0AU  /* 10 ms polling interval             */
 
 #define USB_HID_CONFIG_DESC_SIZ     34U
@@ -51,6 +52,7 @@ typedef struct {
     uint32_t AltSetting;
     volatile uint32_t state;
     uint8_t  FeatureBuf[HID_FEATURE_REPORT_BUF_SIZE];
+    uint8_t  OutReportBuf[64];
 } USBD_HID_HandleTypeDef;
 
 /** Report descriptor is defined in usbd_hid_if.c */
