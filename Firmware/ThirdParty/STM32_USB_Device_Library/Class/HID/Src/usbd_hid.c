@@ -12,7 +12,6 @@
 #include "usbd_ctlreq.h"
 #include "ffb_pid.h"
 #include "hid_queue.h"
-#include "hid_bridge.h"
 
 static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
