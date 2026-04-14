@@ -50,6 +50,10 @@ static float s_home_offset = 0.0f;
 /* ── Forward declaration ────────────────────────────────────────────────────── */
 static void app_apply_config(void);
 
+/* ── PID State change tracking (set by hid_apply_ffb, consumed by hid_send_telemetry) ── */
+static volatile bool s_pid_state_dirty   = true;   /* true at boot → send initial state */
+static volatile bool s_pid_actuators_on  = false;
+
 /* ── Application callbacks ─────────────────────────────────────────────────── */
 static void app_set_axis_state(uint8_t state)
 {
@@ -214,16 +218,18 @@ extern "C" void HID_ODrive_ProcessCommand(const HID_CommandPayload_t *raw)
     protocol_dispatch(reinterpret_cast<const HID_Command_t *>(raw));
 }
 
-/* ── hid_send_telemetry — call every ~10 ms from telemetry task ─────────────── */
+/* ── hid_send_telemetry — called every 10 ms from hid_task_fn ───────────────
+ * Queues (in order): PID State (if changed), joystick, telemetry.
+ * Then kicks hid_queue_process() so the first item transmits immediately
+ * if the endpoint is free.  Subsequent items drain via the DataIn callback.
+ * ─────────────────────────────────────────────────────────────────────────── */
 extern "C" void hid_send_telemetry(void)
 {
-    static uint32_t frame_count = 0;
-    frame_count++;
+    Axis &ax = axis0();
 
+    /* ── Build telemetry payload ── */
     HID_TelemetryPayload_t t;
     memset(&t, 0, sizeof(t));
-
-    Axis &ax = axis0();
 
     float pos_abs      = ax.encoder_.pos_estimate_.present().value_or(0.0f);
     t.pos_estimate     = pos_abs - s_home_offset;
@@ -234,39 +240,36 @@ extern "C" void hid_send_telemetry(void)
     t.Iq_measured      = ax.motor_.current_control_.Iq_measured_;
     t.phase_resistance = ax.motor_.config_.phase_resistance;
     t.phase_inductance = ax.motor_.config_.phase_inductance;
-
     t.current_state    = static_cast<uint8_t>(ax.current_state_);
-    t.flags            = (ax.encoder_.is_ready_ ? 0x01U : 0U)
-                       | (ax.motor_.is_calibrated_ ? 0x02U : 0U);
+    t.flags            = (ax.encoder_.is_ready_      ? 0x01U : 0U)
+                       | (ax.motor_.is_calibrated_   ? 0x02U : 0U);
     t.axis_error       = static_cast<uint32_t>(ax.error_);
     t.motor_error      = static_cast<uint32_t>(ax.motor_.error_);
     t.encoder_error    = static_cast<uint32_t>(ax.encoder_.error_);
     t.mag_agc          = ax.encoder_.abs_agc_;
     t.mag_flags        = ax.encoder_.abs_diag_flags_;
 
-    /* ───────────── JOYSTICK ───────────── */
+    /* ── PID State (only on actuator enable/disable change) ── */
+    if (s_pid_state_dirty) {
+        s_pid_state_dirty = false;
+        uint8_t pid_report[2];
+        pid_report[0] = FFB_REPORT_PID_STATE;
+        pid_report[1] = s_pid_actuators_on ? 0x01U : 0x00U;
+        hid_queue_push(pid_report, sizeof(pid_report));
+    }
 
+    /* ── Joystick (Report 0x01) — consumed by joy.cpl / DirectInput ── */
     float half_turns = g_config.steering_max_lock / 720.0f;
-
-    float joy_f = (t.pos_estimate / half_turns) * 32767.0f;
-
+    float joy_f      = (t.pos_estimate / half_turns) * 32767.0f;
     if (joy_f >  32767.0f) joy_f =  32767.0f;
     if (joy_f < -32767.0f) joy_f = -32767.0f;
+    HID_Joystick_Send(static_cast<int16_t>(joy_f));
 
-    int16_t joy_x = static_cast<int16_t>(joy_f);
+    /* ── Telemetry (Report 0x02) — consumed by the GUI ── */
+    HID_ODrive_SendTelemetry(&t);
 
-    uint8_t report[3];
-    report[0] = HID_REPORT_ID_JOYSTICK;
-    report[1] = (uint8_t)(joy_x & 0xFF);
-    report[2] = (uint8_t)(joy_x >> 8);
-
-    // Envia o joystick toda vez que a função é chamada (100Hz)
-    hid_queue_push(report, sizeof(report));
-
-    // /* ───────────── TELEMETRIA (SÓ A CADA 5 CICLOS) ───────────── */
-    // if (frame_count % 5 == 0) { 
-    //     HID_ODrive_SendTelemetry(&t);
-    // }
+    /* ── Kick queue: start transmitting if EP is currently idle ── */
+    hid_queue_process();
 }
 
 /* ── Soft endstop helper ─────────────────────────────────────────────────────
@@ -320,7 +323,9 @@ extern "C" void hid_apply_ffb(void)
         return;
     }
 
-    if (ffb_actuators_enabled()) {
+    bool actuators_on = ffb_actuators_enabled();
+
+    if (actuators_on) {
         /* Switch to torque control on first FFB enable */
         if (ax.controller_.config_.control_mode !=
                 Controller::CONTROL_MODE_TORQUE_CONTROL) {
@@ -345,6 +350,12 @@ extern "C" void hid_apply_ffb(void)
                 static_cast<Controller::ControlMode>(g_config.control_mode);
             ax.controller_.input_torque_ = 0.0f;
         }
+    }
+
+    /* Track state changes so hid_send_telemetry can push PID State report */
+    if (actuators_on != s_pid_actuators_on) {
+        s_pid_actuators_on = actuators_on;
+        s_pid_state_dirty  = true;
     }
 }
 

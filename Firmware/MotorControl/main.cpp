@@ -23,21 +23,19 @@ static void hid_task_fn(void*) {
      * via DEFAULT_GPIO_MODES — no manual GPIO override or TIM3 start needed. */
 
     for (;;) {
-        /* Process pending commands first (config response, save, etc.)
-           while the endpoint is guaranteed free from the previous cycle. */
+        /* 1. Handle any deferred commands (config response, save, etc.).
+         *    These push to the HID queue and kick it — no blocking wait. */
         protocol_process_pending();
 
-        /* Apply FFB torque — must run every cycle while in closed loop.
-         * Reads encoder pos/vel and writes controller_.input_torque_.    */
+        /* 2. Compute FFB torque for this cycle (tracks actuator state changes). */
         hid_apply_ffb();
 
-        /* Small gap so the config response (if sent above) is transmitted
-           before telemetry occupies the endpoint again. */
-        osDelay(2);
-
+        /* 3. Queue joystick + telemetry (+ PID State if actuator state changed)
+         *    and kick the send queue.  Everything flows through hid_queue so
+         *    reports never race each other on the shared IN endpoint. */
         hid_send_telemetry();
 
-        osDelay(8);  /* total cadence ~10 ms */
+        osDelay(10);  /* 10 ms cadence → 100 Hz joystick, 100 Hz telemetry */
     }
 }
 

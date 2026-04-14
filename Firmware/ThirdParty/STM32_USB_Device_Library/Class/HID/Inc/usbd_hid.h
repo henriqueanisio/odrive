@@ -19,7 +19,7 @@ extern "C" {
 #define HID_EPIN_ADDR               0x81U
 #define HID_EPIN_SIZE               0x40U  /* 64 bytes — covers all report sizes */
 #define HID_EPOUT_SIZE              0x40U
-#define HID_FS_BINTERVAL            0x0AU  /* 10 ms polling interval             */
+#define HID_FS_BINTERVAL            0x01U  /* 1 ms polling interval             */
 
 #define USB_HID_CONFIG_DESC_SIZ     41U
 #define USB_HID_DESC_SIZ            9U

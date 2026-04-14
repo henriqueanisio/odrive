@@ -350,7 +350,11 @@ uint8_t HID_ODrive_SendConfigResponse(uint16_t param_id, float value)
     report[0] = HID_REPORT_ID_CONFIG_RESP;
     memcpy(&report[1], &param_id, 2);
     memcpy(&report[3], &value,    4);
-    return USBD_HID_SendReport(&hUsbDeviceFS, report, sizeof(report));
+    /* Route through the queue so config responses don't race with
+     * joystick / telemetry reports that are already in flight. */
+    bool ok = hid_queue_push(report, sizeof(report));
+    hid_queue_process();   /* kick if endpoint is currently idle */
+    return ok ? (uint8_t)USBD_OK : (uint8_t)USBD_BUSY;
 }
 
 /* ── HID_ODrive_ProcessCommand (weak default) ────────────────────────────── */
