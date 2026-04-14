@@ -21,7 +21,7 @@ extern "C" {
 #define HID_EPOUT_SIZE              0x40U
 #define HID_FS_BINTERVAL            0x0AU  /* 10 ms polling interval             */
 
-#define USB_HID_CONFIG_DESC_SIZ     34U
+#define USB_HID_CONFIG_DESC_SIZ     41U
 #define USB_HID_DESC_SIZ            9U
 
 #define HID_REPORT_DESC_SIZE        109U
