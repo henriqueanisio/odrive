@@ -55,7 +55,8 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[] __ALIGN_END =
 
     /* HID */
     0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
-    sizeof(HID_ReportDesc), 0x00,
+    (uint8_t)(sizeof(HID_ReportDesc) & 0xFF),
+    (uint8_t)(sizeof(HID_ReportDesc) >> 8),
 
     /* EP IN */
     0x07, 0x05, 0x81, 0x03, 0x40, 0x00, 0x01,
@@ -81,7 +82,9 @@ static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
     (void)cfgidx;
 
-    USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)USBD_malloc(sizeof(USBD_HID_HandleTypeDef));
+    USBD_HID_HandleTypeDef *hhid =
+        (USBD_HID_HandleTypeDef *)USBD_malloc(sizeof(USBD_HID_HandleTypeDef));
+
     if (hhid == NULL) {
         pdev->pClassData = NULL;
         return (uint8_t)USBD_EMEM;
@@ -89,25 +92,19 @@ static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 
     pdev->pClassData = hhid;
 
-    USBD_LL_OpenEP(pdev, HID_EPIN_ADDR, USBD_EP_TYPE_INTR, HID_EPIN_SIZE);
-    pdev->ep_in[HID_EPIN_ADDR & 0xFU].is_used = 1U;
+    USBD_LL_OpenEP(pdev, 0x81, USBD_EP_TYPE_INTR, 64);
+
+    USBD_LL_OpenEP(pdev, 0x01, USBD_EP_TYPE_INTR, 64);
 
     hhid->state = HID_IDLE;
 
-    /* Interface 0 - Joystick */
-    USBD_LL_OpenEP(pdev, HID_JOY_EPIN_ADDR, USBD_EP_TYPE_INTR, HID_EPIN_SIZE);
-
-    /* Interface 1 - FFB */
-    USBD_LL_OpenEP(pdev, HID_FFB_EPIN_ADDR, USBD_EP_TYPE_INTR, HID_EPIN_SIZE);
-    USBD_LL_OpenEP(pdev, HID_FFB_EPOUT_ADDR, USBD_EP_TYPE_INTR, HID_EPOUT_SIZE);
-
-    /* Interface 2 - Vendor */
-    USBD_LL_OpenEP(pdev, HID_VENDOR_EPIN_ADDR, USBD_EP_TYPE_INTR, HID_EPIN_SIZE);
-
-    /* Preparar OUT */
-    USBD_LL_PrepareReceive(pdev, HID_FFB_EPOUT_ADDR,
-        ((USBD_HID_HandleTypeDef*)pdev->pClassData)->OutReportBuf,
-        HID_EPOUT_SIZE);
+    /* preparar OUT */
+    USBD_LL_PrepareReceive(
+        pdev,
+        0x01,
+        hhid->OutReportBuf,
+        64
+    );
 
     return (uint8_t)USBD_OK;
 }
@@ -116,7 +113,8 @@ static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
     (void)cfgidx;
 
-    USBD_LL_CloseEP(pdev, HID_EPIN_ADDR);
+    USBD_LL_CloseEP(pdev, 0x81);
+    USBD_LL_CloseEP(pdev, 0x01);
     pdev->ep_in[HID_EPIN_ADDR & 0xFU].is_used = 0U;
 
     if (pdev->pClassData != NULL) {
@@ -261,7 +259,7 @@ uint8_t USBD_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t 
     }
 
     hhid->state = HID_BUSY;
-    USBD_LL_Transmit(pdev, HID_EPIN_ADDR, report, len);
+    USBD_LL_Transmit(pdev, 0x81, report, len);
     return (uint8_t)USBD_OK;
 }
 
@@ -294,7 +292,7 @@ static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
 static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-    if (epnum != (HID_FFB_EPOUT_ADDR & 0x7F))
+    if (epnum != 0x01)
         return USBD_OK;
 
     USBD_HID_HandleTypeDef *hhid =
@@ -308,9 +306,9 @@ static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
     USBD_LL_PrepareReceive(
         pdev,
-        HID_FFB_EPOUT_ADDR,
+        0x01,
         hhid->OutReportBuf,
-        HID_EPOUT_SIZE
+        64
     );
 
     return USBD_OK;
