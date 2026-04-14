@@ -155,6 +155,13 @@ static void app_apply_config_core(void)
     ax.controller_.config_.pos_gain                 = g_config.pos_gain;
     ax.controller_.config_.vel_gain                 = g_config.vel_gain;
     ax.controller_.config_.vel_integrator_gain      = g_config.vel_integrator_gain;
+    /* FFB operates in torque control mode with vel_gain=0.
+     * enable_torque_mode_vel_limit defaults to TRUE in ODrive and would
+     * clamp every torque command to zero when vel_gain=0:
+     *   Tmax = (vel_limit − vel) × 0 = 0
+     *   Tmin = (−vel_limit − vel) × 0 = 0  → torque = clamp(t, 0, 0) = 0
+     * Disabling this gate lets our FFB torque reach the motor. */
+    ax.controller_.config_.enable_torque_mode_vel_limit = false;
 
     /* ── DC Bus / Brake ── */
     odrv.config_.dc_bus_undervoltage_trip_level     = g_config.vbus_undervoltage;
