@@ -217,20 +217,39 @@ extern "C" void HID_ODrive_ProcessCommand(const HID_CommandPayload_t *raw)
 /* ── hid_send_telemetry — call every ~10 ms from telemetry task ─────────────── */
 extern "C" void hid_send_telemetry(void)
 {
-    static uint32_t frame_count = 0;
-    frame_count++;
-
     HID_TelemetryPayload_t t;
     memset(&t, 0, sizeof(t));
+
     Axis &ax = axis0();
 
-    // ... (seu código de leitura de encoder igual) ...
-    t.pos_estimate = pos_abs - s_home_offset;
-    
-    /* ───────────── JOYSTICK (SEMPRE ENVIA) ───────────── */
+    float pos_abs      = ax.encoder_.pos_estimate_.present().value_or(0.0f);
+    t.pos_estimate     = pos_abs - s_home_offset;
+    t.vel_estimate     = ax.encoder_.vel_estimate_.present().value_or(0.0f);
+    t.vbus_voltage     = odrv.vbus_voltage_;
+    t.current_lim      = ax.motor_.config_.current_lim;
+    t.input_pos        = ax.controller_.input_pos_ - s_home_offset;
+    t.Iq_measured      = ax.motor_.current_control_.Iq_measured_;
+    t.phase_resistance = ax.motor_.config_.phase_resistance;
+    t.phase_inductance = ax.motor_.config_.phase_inductance;
+
+    t.current_state    = static_cast<uint8_t>(ax.current_state_);
+    t.flags            = (ax.encoder_.is_ready_ ? 0x01U : 0U)
+                       | (ax.motor_.is_calibrated_ ? 0x02U : 0U);
+    t.axis_error       = static_cast<uint32_t>(ax.error_);
+    t.motor_error      = static_cast<uint32_t>(ax.motor_.error_);
+    t.encoder_error    = static_cast<uint32_t>(ax.encoder_.error_);
+    t.mag_agc          = ax.encoder_.abs_agc_;
+    t.mag_flags        = ax.encoder_.abs_diag_flags_;
+
+    /* ───────────── JOYSTICK ───────────── */
+
     float half_turns = g_config.steering_max_lock / 720.0f;
+
     float joy_f = (t.pos_estimate / half_turns) * 32767.0f;
-    // ... (clamp de joy_f) ...
+
+    if (joy_f >  32767.0f) joy_f =  32767.0f;
+    if (joy_f < -32767.0f) joy_f = -32767.0f;
+
     int16_t joy_x = static_cast<int16_t>(joy_f);
 
     uint8_t report[3];
