@@ -122,7 +122,7 @@ typedef struct {
     .motor_pre_calibrated          = 0,               \
     .phase_resistance              = 0.0f,            \
     .phase_inductance              = 0.0f,            \
-    .encoder_cpr                   = 2400,            \  /* 600 PPR × 4 quadratura = 2400 CPR */
+    .encoder_cpr                   = 2400,            \  
     .encoder_direction             = 1,               \
     .encoder_offset                = 0.0f,            \
     .encoder_mode                  = 0,               \
