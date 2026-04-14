@@ -178,76 +178,42 @@ typedef struct {
     .encoder_offset                = 0.0f,              \
     .encoder_mode                  = 0,                 \
     .encoder_bandwidth             = 200.0f,            \
-
     .abs_spi_cs_gpio_pin           = 7,                 \
     .encoder_pre_calibrated        = 0,                 \
     .encoder_use_index             = 0,                 \
-
-    /* Controller */
     .pos_gain                      = 0.0f,              \
     .vel_gain                      = 0.0f,              \
     .vel_integrator_gain           = 0.0f,              \
     .vel_limit                     = 20000.0f,          \
-    .control_mode                  = 1, /* TORQUE */    \
-
-    /* Power */
+    .control_mode                  = 1,                 \
     .vbus_undervoltage             = 8.0f,              \
     .vbus_overvoltage              = 24.0f,             \
     .enable_brake_resistor         = 1,                 \
     .brake_resistance              = 12.0f,             \
-
-    /* Steering */
     .steering_max_lock             = 900.0f,            \
-
-    /* ================= FFB CORE ================= */
-
     .ffb_max_torque                = 3.0f,              \
     .ffb_gain                      = 1.0f,              \
     .ffb_min_force                 = 0.02f,             \
-
-    /* ================= EFFECTS ================= */
-
     .ffb_damping                   = 0.08f,             \
     .ffb_friction                  = 0.015f,            \
     .ffb_inertia                   = 0.025f,            \
     .ffb_spring                    = 0.05f,             \
-
-    /* ================= ADVANCED ================= */
-
     .ffb_slew_rate                 = 0.08f,             \
     .ffb_filter_hz                 = 80.0f,             \
-
-    /* ================= ENDSTOP ================= */
-
     .ffb_endstop_strength          = 0.7f,              \
     .ffb_endstop_range             = 0.08f,             \
-
-    /* ================= PRO FEATURES ================= */
-
     .ffb_input_filter_hz           = 120.0f,            \
-
-    /* Center boost (leve e natural) */
     .ffb_center_boost_str          = 0.1f,              \
     .ffb_center_boost_width        = 0.12f,             \
-
-    /* Friction avançado */
     .ffb_static_friction           = 0.02f,             \
     .ffb_stribeck_vel              = 0.03f,             \
-
-    /* Inertia filtering */
     .ffb_inertia_filter_hz         = 25.0f,             \
-
-    /* Endstop progressivo */
     .ffb_endstop_exp               = 2.5f,              \
-
-    /* Thermal protection */
     .ffb_thermal_tau               = 20.0f,             \
     .ffb_thermal_min               = 0.5f,              \
-
-    /* LUT (desligado por padrão) */
     .ffb_lut_enabled               = 0,                 \
-    .ffb_lut = {0.0000f, 0.12f, 0.26f, 0.40f,          \
-                0.55f, 0.70f, 0.85f, 1.0000f},         \
+    .ffb_lut = {0.0000f, 0.12f, 0.26f, 0.40f,           \
+                0.55f, 0.70f, 0.85f, 1.0000f},          \
 }
 
 extern ODriveConfig_t g_config;
