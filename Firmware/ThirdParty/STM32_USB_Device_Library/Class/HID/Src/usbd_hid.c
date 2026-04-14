@@ -12,7 +12,7 @@
 #include "usbd_ctlreq.h"
 #include "ffb_pid.h"
 #include "hid_queue.h"
-#include "hid_desc_sizes.h"
+#include "hid_bridge.h"
 
 static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
@@ -207,20 +207,13 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                 if ((req->wValue >> 8) == HID_REPORT_DESC_TYPE) {
 
                     uint8_t intf = req->wIndex & 0xFF;
+                    uint16_t desc_len;
+                    const uint8_t *desc = HID_GetReportDesc(intf, &desc_len);
 
-                    if (intf == 0) {
-                        len = MIN(HID_JOY_DESC_SIZE, req->wLength);
-                        USBD_CtlSendData(pdev, HID_JOY_ReportDesc, len);
-                    }
-                    else if (intf == 1) {
-                        len = MIN(HID_FFB_DESC_SIZE, req->wLength);
-                        USBD_CtlSendData(pdev, HID_FFB_ReportDesc, len);
-                    }
-                    else if (intf == 2) {
-                        len = MIN(HID_VENDOR_DESC_SIZE, req->wLength);
-                        USBD_CtlSendData(pdev, HID_VENDOR_ReportDesc, len);
-                    }
-                    else {
+                    if (desc && desc_len > 0) {
+                        len = MIN(desc_len, req->wLength);
+                        USBD_CtlSendData(pdev, (uint8_t*)desc, len);
+                    } else {
                         USBD_CtlError(pdev, req);
                         ret = USBD_FAIL;
                     }

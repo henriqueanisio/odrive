@@ -174,6 +174,28 @@ uint8_t HID_ODrive_SendConfigResponse(uint16_t param_id, float value)
     return USBD_HID_SendReport(&hUsbDeviceFS, report, sizeof(report));
 }
 
+const uint8_t* HID_GetReportDesc(uint8_t intf, uint16_t *len)
+{
+    switch (intf)
+    {
+        case 0:
+            *len = HID_JOY_DESC_SIZE;
+            return HID_JOY_ReportDesc;
+
+        case 1:
+            *len = HID_FFB_DESC_SIZE;
+            return HID_FFB_ReportDesc;
+
+        case 2:
+            *len = HID_VENDOR_DESC_SIZE;
+            return HID_VENDOR_ReportDesc;
+
+        default:
+            *len = 0;
+            return NULL;
+    }
+}
+
 /* ── HID_ODrive_ProcessCommand (weak default) ────────────────────────────── */
 __attribute__((weak)) void HID_ODrive_ProcessCommand(const HID_CommandPayload_t *cmd)
 {
