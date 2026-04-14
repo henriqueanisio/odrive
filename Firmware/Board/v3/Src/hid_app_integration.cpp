@@ -263,10 +263,10 @@ extern "C" void hid_send_telemetry(void)
     // Envia o joystick toda vez que a função é chamada (100Hz)
     hid_queue_push(report, sizeof(report));
 
-    /* ───────────── TELEMETRIA (SÓ A CADA 5 CICLOS) ───────────── */
-    if (frame_count % 5 == 0) { 
-        HID_ODrive_SendTelemetry(&t);
-    }
+    // /* ───────────── TELEMETRIA (SÓ A CADA 5 CICLOS) ───────────── */
+    // if (frame_count % 5 == 0) { 
+    //     HID_ODrive_SendTelemetry(&t);
+    // }
 }
 
 /* ── Soft endstop helper ─────────────────────────────────────────────────────
