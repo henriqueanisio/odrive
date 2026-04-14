@@ -268,7 +268,6 @@ static void app_apply_config(void)
     }
 }
 
-
 /* ── HID_ODrive_ProcessCommand — strong override ─────────────────────────────
  * Called from USB ISR (via USBD_HID_EP0_RxReady). Must not block.
  * ─────────────────────────────────────────────────────────────────────────── */
