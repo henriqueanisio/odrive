@@ -18,13 +18,13 @@ extern "C" {
 
 #define HID_EPIN_ADDR               0x81U
 #define HID_EPIN_SIZE               0x40U  /* 64 bytes — covers all report sizes */
-#define HID_EPOUT_SIZE              0x40U
 #define HID_FS_BINTERVAL            0x0AU  /* 10 ms polling interval             */
 
-#define USB_HID_CONFIG_DESC_SIZ     41U
+#define USB_HID_CONFIG_DESC_SIZ     34U
 #define USB_HID_DESC_SIZ            9U
 
-#define HID_REPORT_DESC_SIZE        109U
+/* Joystick+PID(417) + vendor(53) = 470 bytes — see usbd_hid_if.c for exact count */
+#define HID_REPORT_DESC_SIZE        470U
 
 #define HID_DESCRIPTOR_TYPE         0x21U
 #define HID_REPORT_DESC_TYPE        0x22U
@@ -36,12 +36,6 @@ extern "C" {
 #define HID_REQ_GET_IDLE            0x02U
 #define HID_REQ_SET_REPORT          0x09U
 #define HID_REQ_GET_REPORT          0x01U
-
-#define HID_JOY_EPIN_ADDR     0x81
-#define HID_FFB_EPIN_ADDR     0x82
-#define HID_FFB_EPOUT_ADDR    0x02
-#define HID_VENDOR_EPIN_ADDR  0x83
-
 
 /* TX state for preventing overlapping transfers */
 #define HID_IDLE                    0U
@@ -56,11 +50,7 @@ typedef struct {
     uint32_t IdleState;
     uint32_t AltSetting;
     volatile uint32_t state;
-
-    uint8_t FeatureBuf[HID_FEATURE_REPORT_BUF_SIZE];
-
-    uint8_t OutReportBuf[64]; 
-
+    uint8_t  FeatureBuf[HID_FEATURE_REPORT_BUF_SIZE];
 } USBD_HID_HandleTypeDef;
 
 /** Report descriptor is defined in usbd_hid_if.c */
