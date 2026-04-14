@@ -54,7 +54,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[] __ALIGN_END =
     0x09, 0x04, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00,
 
     /* HID */
-    0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
+    0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x29,
     (uint8_t)(sizeof(HID_ReportDesc) & 0xFF),
     (uint8_t)(sizeof(HID_ReportDesc) >> 8),
 
@@ -196,7 +196,6 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                 }
                 else if ((req->wValue >> 8) == HID_DESCRIPTOR_TYPE)
                 {
-                    /* HID descriptor único */
                     pbuf = USBD_HID_CfgDesc + 18U;
 
                     len = MIN(USB_HID_DESC_SIZ, req->wLength);
