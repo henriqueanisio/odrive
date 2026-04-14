@@ -112,17 +112,17 @@ typedef struct {
 
 /* Factory defaults */
 #define CONFIG_DEFAULT {                                \
-    .current_lim                   = 10.0f,           \
-    .torque_constant               = 0.04f,           \
-    .pole_pairs                    = 7,               \
+    .current_lim                   = 25.0f,           \
+    .torque_constant               = 0.5f,           \
+    .pole_pairs                    = 15,               \
     .motor_type                    = 0,               \
     .current_control_bandwidth     = 100.0f,          \
-    .calibration_current           = 10.0f,           \
+    .calibration_current           = 4.0f,           \
     .resistance_calib_max_voltage  = 2.0f,            \
     .motor_pre_calibrated          = 0,               \
     .phase_resistance              = 0.0f,            \
     .phase_inductance              = 0.0f,            \
-    .encoder_cpr                   = 8192,            \
+    .encoder_cpr                   = 2400,            \  /* 600 PPR × 4 quadratura = 2400 CPR */
     .encoder_direction             = 1,               \
     .encoder_offset                = 0.0f,            \
     .encoder_mode                  = 0,               \
@@ -136,9 +136,9 @@ typedef struct {
     .vel_limit                     = 20000.0f,        \
     .control_mode                  = 3,               \
     .vbus_undervoltage             = 8.0f,            \
-    .vbus_overvoltage              = 56.0f,           \
-    .enable_brake_resistor         = 0,               \
-    .brake_resistance              = 2.0f,            \
+    .vbus_overvoltage              = 24.0f,           \
+    .enable_brake_resistor         = 1,               \
+    .brake_resistance              = 12.0f,            \
     .steering_max_lock             = 900.0f,          \
     .ffb_max_torque                = 3.0f,            \
     .ffb_gain                      = 1.0f,            \

@@ -201,10 +201,34 @@ static void app_apply_config_core(void)
         gp.Alternate = GPIO_AF1_TIM2;
         HAL_GPIO_Init(GPIOA, &gp);
 
-        /* IC1F[7:4] and IC2F[15:12] in TIMx_CCMR1 — both set to 0xF */
+        /* ── Step 1: TIM CR1 CKD prescaler — divides f_CK_INT before filter
+         *
+         * TIM2 clock = APB1 timer clock = 84 MHz on ODrive v3 (STM32F405 @ 168 MHz).
+         * CKD = 01 → f_DTS = 84 MHz / 2 = 42 MHz.
+         *
+         * Without CKD prescaler (CKD=00):  f_DTS = 84 MHz
+         * With    CKD prescaler (CKD=01):  f_DTS = 42 MHz
+         *
+         * CR1 bits [9:8] = CKD[1:0].  Safe to change while CEN=1. */
+        uint32_t cr1 = htim->Instance->CR1;
+        cr1 &= ~(3U << 8U);   /* clear CKD[1:0]   */
+        cr1 |=  (1U << 8U);   /* CKD = 01 (÷2)    */
+        htim->Instance->CR1 = cr1;
+
+        /* ── Step 2: IC input filter — IC1F = IC2F = 0xF
+         *
+         * Filter mode 0xF = f_DTS/32, N=8.
+         * With CKD=01: f_sample = 42 MHz / 32 = 1.3125 MHz
+         * Minimum valid pulse width = N / f_sample = 8 / 1.3125 MHz ≈ 6.1 µs
+         *
+         * PWM switching transients + cable ringing from motor:  typically 0.2–3 µs → BLOCKED ✓
+         * Real encoder edges at 600 PPR × 1000 RPM:  period ≈ 100 µs             → PASSED  ✓
+         * Real encoder edges at 600 PPR × 500 RPM:   period ≈ 200 µs             → PASSED  ✓
+         *
+         * IC1F: CCMR1 bits [7:4],  IC2F: CCMR1 bits [15:12] */
         uint32_t ccmr1 = htim->Instance->CCMR1;
         ccmr1 &= ~((0x0FU << 4U) | (0x0FU << 12U));  /* clear IC1F, IC2F */
-        ccmr1 |=   (0x0FU << 4U) | (0x0FU << 12U);   /* f_DTS/32, N=8    */
+        ccmr1 |=   (0x0FU << 4U) | (0x0FU << 12U);   /* set both to 0xF  */
         htim->Instance->CCMR1 = ccmr1;
     }
 }
@@ -281,8 +305,18 @@ extern "C" void hid_send_telemetry(void)
     t.axis_error       = static_cast<uint32_t>(ax.error_);
     t.motor_error      = static_cast<uint32_t>(ax.motor_.error_);
     t.encoder_error    = static_cast<uint32_t>(ax.encoder_.error_);
-    t.mag_agc          = ax.encoder_.abs_agc_;
-    t.mag_flags        = ax.encoder_.abs_diag_flags_;
+    if (g_config.encoder_mode == 0) {
+        /* Modo INCREMENTAL: abs_agc_ e abs_diag_flags_ são sempre 0.
+         * Sobrescrevemos com os 16 bits baixos do contador do TIM2 para
+         * que a GUI possa mostrar o valor bruto e confirmar o CPR real.
+         * Mover 1 volta completa deve incrementar em exatamente encoder_cpr. */
+        uint16_t raw = (uint16_t)(ax.encoder_.timer_->Instance->CNT & 0xFFFFU);
+        t.mag_agc   = (uint8_t)(raw & 0xFFU);
+        t.mag_flags = (uint8_t)((raw >> 8U) & 0xFFU);
+    } else {
+        t.mag_agc   = ax.encoder_.abs_agc_;
+        t.mag_flags = ax.encoder_.abs_diag_flags_;
+    }
 
     /* ── PID State (only on actuator enable/disable change) ── */
     if (s_pid_state_dirty) {
