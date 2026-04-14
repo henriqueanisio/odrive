@@ -292,26 +292,26 @@ static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
 static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-    if (epnum != 0x01)
-        return USBD_OK;
+    // 1. Filtra pelo Endpoint correto (0x01 no seu caso)
+    if (epnum == 0x01) 
+    {
+        USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef*)pdev->pClassData;
+        
+        // 2. Pegamos o Report ID (byte 0)
+        uint8_t report_id = hhid->OutReportBuf[0];
 
-    USBD_HID_HandleTypeDef *hhid =
-        (USBD_HID_HandleTypeDef*)pdev->pClassData;
+        /* 3. IMPORTANTE: 
+           Se ffb_process_report for muito lenta, o joystick (Eixo X) para de responder.
+           Garanta que essa função apenas salve os valores em variáveis
+           e deixe o cálculo do torque para o loop principal do ODrive. */
+        ffb_process_report(report_id, &hhid->OutReportBuf[1], 63);
 
-    uint8_t *buf = hhid->OutReportBuf;
-
-    uint8_t report_id = buf[0];
-
-    ffb_process_report(report_id, &buf[1], HID_EPOUT_SIZE - 1);
-
-    USBD_LL_PrepareReceive(
-        pdev,
-        0x01,
-        hhid->OutReportBuf,
-        64
-    );
-
-    return USBD_OK;
+        // 4. ESSENCIAL: Re-arma o endpoint IMEDIATAMENTE para não perder dados
+        // Use o tamanho fixo de 64 bytes para evitar erros de enumeração
+        USBD_LL_PrepareReceive(pdev, 0x01, hhid->OutReportBuf, 64);
+    }
+    
+    return (uint8_t)USBD_OK;
 }
 
 static uint8_t *USBD_HID_GetFSCfgDesc(uint16_t *length)
