@@ -94,7 +94,7 @@
 #define USBD_VID     0x1209
 #define USBD_LANGID_STRING     1033
 #define USBD_MANUFACTURER_STRING     "ODrive Robotics"
-#define USBD_PID_FS     0x0D52        
+#define USBD_PID_FS     0x0D53        
 #define USBD_PRODUCT_XSTR(s) USBD_PRODUCT_STR(s)
 #define USBD_PRODUCT_STR(s) #s
 #define USBD_PRODUCT_STRING_FS Direct Drive FFB Wheel
