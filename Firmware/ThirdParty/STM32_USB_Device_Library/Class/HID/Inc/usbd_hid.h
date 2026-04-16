@@ -24,8 +24,8 @@ extern "C" {
 #define USB_HID_CONFIG_DESC_SIZ     41U
 #define USB_HID_DESC_SIZ            9U
 
-/* Joystick(23) + PID(399) + Vendor(53) = 475 bytes — see usbd_hid_if.c for exact count */
-#define HID_REPORT_DESC_SIZE        475U
+/* Joystick+PID(417) + PID-placeholder(22) + Vendor(53) = 492 bytes — see usbd_hid_if.c */
+#define HID_REPORT_DESC_SIZE        492U
 
 #define HID_DESCRIPTOR_TYPE         0x21U
 #define HID_REPORT_DESC_TYPE        0x22U
