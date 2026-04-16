@@ -22,13 +22,13 @@
  *
  * Application Collection 1: Generic Desktop / Joystick  (417 bytes)
  *   Report 0x01 (IN,  2 B)  — Joystick X axis
- *   Report 0x05 (Feat,10 B) — PID Set Effect
- *   Report 0x06 (Feat, 9 B) — PID Set Periodic (Sine / Square / Triangle)
- *   Report 0x07 (Feat,12 B) — PID Set Condition (Spring / Damper)
- *   Report 0x08 (Feat, 3 B) — PID Set Constant Force
- *   Report 0x0B (Feat, 4 B) — PID Effect Operation
- *   Report 0x0C (Feat, 1 B) — PID Device Control
- *   Report 0x0D (Feat, 1 B) — PID Device Gain
+ *   Report 0x05 (Out, 10 B) — PID Set Effect           (Output → OUT ep)
+ *   Report 0x06 (Out,  9 B) — PID Set Periodic         (Output → OUT ep)
+ *   Report 0x07 (Out, 12 B) — PID Set Condition        (Output → OUT ep)
+ *   Report 0x08 (Out,  3 B) — PID Set Constant Force   (Output → OUT ep)
+ *   Report 0x0B (Out,  4 B) — PID Effect Operation     (Output → OUT ep)
+ *   Report 0x0C (Out,  1 B) — PID Device Control       (Output → OUT ep)
+ *   Report 0x0D (Out,  1 B) — PID Device Gain          (Output → OUT ep)
  *   Report 0x0E (IN,   1 B) — PID State
  *   Report 0x0F (Feat, 4 B) — PID Block Load   (GET_REPORT, device→host)
  *   Report 0x10 (Feat, 4 B) — PID Pool Report  (GET_REPORT, device→host)
@@ -73,7 +73,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       /* Switch to PID Usage Page for all following reports in this collection */
       0x05, 0x0F,      /* Usage Page (Physical Interface Device)              */
 
-      /* ── Report 0x05: Set Effect (Feature, 10 bytes payload) ── */
+      /* ── Report 0x05: Set Effect (Output, 10 bytes payload) ── */
       0x85, FFB_REPORT_SET_EFFECT,
       /* Effect Block Index: uint8, 0..FFB_MAX_EFFECTS */
       0x09, 0x22,      /* Usage (Effect Block Index)                          */
@@ -81,7 +81,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x25, FFB_MAX_EFFECTS,
       0x75, 0x08,      /* Report Size (8)                                     */
       0x95, 0x01,      /* Report Count (1)                                    */
-      0xB1, 0x02,      /* Feature (Variable)                                  */
+      0x91, 0x02,      /* Output (Variable)                                   */
       /* Effect Type: uint8, Named Array — lists supported effect types */
       0x09, 0x25,      /* Usage (Effect Type)                                 */
       0xA1, 0x02,      /* Collection (Logical)                                */
@@ -95,7 +95,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0x25, 0x06,    /* Logical Maximum (6)                                 */
         0x75, 0x08,
         0x95, 0x01,
-        0xB1, 0x00,    /* Feature (Array)                                     */
+        0x91, 0x00,    /* Output (Array)                                      */
       0xC0,            /* End Collection                                      */
       /* Duration, Trigger Repeat Interval, Sample Period: 3 × uint16 */
       0x09, 0x50,      /* Usage (Duration)                                    */
@@ -105,7 +105,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x27, 0xFF, 0xFF, 0x00, 0x00,  /* Logical Maximum (65535)              */
       0x75, 0x10,
       0x95, 0x03,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Gain, Trigger Button: 2 × uint8 */
       0x09, 0x52,      /* Usage (Gain)                                        */
       0x09, 0x53,      /* Usage (Trigger Button)                              */
@@ -113,9 +113,9 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x26, 0xFF, 0x00,/* Logical Maximum (255)                               */
       0x75, 0x08,
       0x95, 0x02,
-      0xB1, 0x02,
+      0x91, 0x02,
 
-      /* ── Report 0x06: Set Periodic (Feature, 9 bytes payload) ── */
+      /* ── Report 0x06: Set Periodic (Output, 9 bytes payload) ── */
       /* Used for Sine (ET=2), Square (ET=3), Triangle (ET=4) effects. */
       0x85, FFB_REPORT_SET_PERIODIC,
       /* Effect Block Index */
@@ -124,37 +124,37 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x25, FFB_MAX_EFFECTS,
       0x75, 0x08,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Magnitude: uint16, 0..10000 */
       0x09, 0x70,      /* Usage (Magnitude)                                   */
       0x15, 0x00,
       0x26, 0x10, 0x27,/* Logical Maximum (10000)                             */
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Offset: int16, -10000..+10000 */
       0x09, 0x60,      /* Usage (Offset)                                      */
       0x16, 0xF0, 0xD8,/* Logical Minimum (-10000)                            */
       0x26, 0x10, 0x27,/* Logical Maximum (+10000)                            */
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Phase: uint16, 0..35999 centidegrees */
       0x09, 0x68,      /* Usage (Phase)                                       */
       0x15, 0x00,
       0x27, 0x9F, 0x8C, 0x00, 0x00, /* Logical Maximum (35999)               */
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Period: uint16, 0..65535 ms */
       0x09, 0x50,      /* Usage (Period)                                      */
       0x15, 0x00,
       0x27, 0xFF, 0xFF, 0x00, 0x00, /* Logical Maximum (65535)                */
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
 
-      /* ── Report 0x07: Set Condition (Feature, 12 bytes payload) ── */
+      /* ── Report 0x07: Set Condition (Output, 12 bytes payload) ── */
       /* Used for Spring (ET=5) and Damper (ET=6) effects.            */
       0x85, FFB_REPORT_SET_CONDITION,
       /* Effect Block Index */
@@ -163,21 +163,21 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x25, FFB_MAX_EFFECTS,
       0x75, 0x08,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Parameter Block Offset (axis index: 0=X) */
       0x09, 0x23,      /* Usage (Parameter Block Offset)                      */
       0x15, 0x00,
       0x25, 0x01,
       0x75, 0x08,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* CP Offset: int16, -10000..+10000 */
       0x09, 0x60,      /* Usage (CP Offset)                                   */
       0x16, 0xF0, 0xD8,/* Logical Minimum (-10000)                            */
       0x26, 0x10, 0x27,/* Logical Maximum (+10000)                            */
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Positive Coefficient, Negative Coefficient: 2 × int16 */
       0x09, 0x61,      /* Usage (Positive Coefficient)                        */
       0x09, 0x62,      /* Usage (Negative Coefficient)                        */
@@ -185,23 +185,23 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x26, 0x10, 0x27,
       0x75, 0x10,
       0x95, 0x02,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Positive Saturation: uint16, 0..10000 */
       0x09, 0x63,      /* Usage (Positive Saturation)                         */
       0x15, 0x00,
       0x26, 0x10, 0x27,
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Dead Band: uint16, 0..10000 */
       0x09, 0x65,      /* Usage (Dead Band)                                   */
       0x15, 0x00,
       0x26, 0x10, 0x27,
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
 
-      /* ── Report 0x08: Set Constant Force (Feature, 3 bytes payload) ── */
+      /* ── Report 0x08: Set Constant Force (Output, 3 bytes payload) ── */
       0x85, FFB_REPORT_SET_CONSTANT_FORCE,
       /* Effect Block Index */
       0x09, 0x22,
@@ -209,16 +209,16 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x25, FFB_MAX_EFFECTS,
       0x75, 0x08,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Magnitude: int16, -10000..+10000 */
       0x09, 0x70,      /* Usage (Magnitude — Constant Force)                  */
       0x16, 0xF0, 0xD8,
       0x26, 0x10, 0x27,
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
 
-      /* ── Report 0x0B: Effect Operation (Feature, 4 bytes payload) ── */
+      /* ── Report 0x0B: Effect Operation (Output, 4 bytes payload) ── */
       0x85, FFB_REPORT_EFFECT_OPERATION,
       /* Effect Block Index */
       0x09, 0x22,
@@ -226,7 +226,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x25, FFB_MAX_EFFECTS,
       0x75, 0x08,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
       /* Operation: uint8, Named Array */
       0x09, 0x75,      /* Usage (Effect Operation)                            */
       0xA1, 0x02,
@@ -237,7 +237,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0x25, 0x03,
         0x75, 0x08,
         0x95, 0x01,
-        0xB1, 0x00,
+        0x91, 0x00,
       0xC0,
       /* Loop Count: uint16 */
       0x09, 0x7A,      /* Usage (Loop Count)                                  */
@@ -245,9 +245,9 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x27, 0xFF, 0xFF, 0x00, 0x00,
       0x75, 0x10,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
 
-      /* ── Report 0x0C: Device Control (Feature, 1 byte payload) ── */
+      /* ── Report 0x0C: Device Control (Output, 1 byte payload) ── */
       0x85, FFB_REPORT_DEVICE_CONTROL,
       0x09, 0x96,      /* Usage (PID Device Control)                          */
       0xA1, 0x02,
@@ -261,17 +261,17 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0x25, 0x06,
         0x75, 0x08,
         0x95, 0x01,
-        0xB1, 0x00,
+        0x91, 0x00,
       0xC0,
 
-      /* ── Report 0x0D: Device Gain (Feature, 1 byte payload) ── */
+      /* ── Report 0x0D: Device Gain (Output, 1 byte payload) ── */
       0x85, FFB_REPORT_DEVICE_GAIN,
       0x09, 0x7C,      /* Usage (Device Gain)                                 */
       0x15, 0x00,
       0x26, 0xFF, 0x00,
       0x75, 0x08,
       0x95, 0x01,
-      0xB1, 0x02,
+      0x91, 0x02,
 
       /* ── Report 0x0E: PID State (IN, 1 byte) ── */
       0x85, FFB_REPORT_PID_STATE,
