@@ -56,8 +56,8 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgDesc[41] __ALIGN_END = {
 
     /* HID Descriptor (9 bytes) */
     0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22,
-    0xDB, 
-    0x01,
+    (uint8_t)(HID_REPORT_DESC_SIZE & 0xFF), 
+    (uint8_t)(HID_REPORT_DESC_SIZE >> 8),
 
     /* Endpoint IN Descriptor (7 bytes) - O que envia posição pro PC */
     0x07, 0x05, 0x81, 0x03, 0x40, 0x00, 0x01,
