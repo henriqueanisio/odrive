@@ -324,6 +324,14 @@ extern "C" void hid_send_telemetry(void)
         t.mag_flags = ax.encoder_.abs_diag_flags_;
     }
 
+    /* ── FFB diagnostic counters ── */
+    {
+        FFB_DiagStats_t diag = ffb_get_diag_stats();
+        t.ffb_rx_count  = diag.rx_count;
+        t.ffb_last_rid  = diag.last_rid;
+        t.ffb_actv      = diag.actv;
+    }
+
     /* ── PID State (only on actuator enable/disable change) ── */
     if (s_pid_state_dirty) {
         s_pid_state_dirty = false;

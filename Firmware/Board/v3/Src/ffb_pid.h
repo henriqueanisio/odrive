@@ -174,6 +174,15 @@ uint8_t ffb_get_pool_report(uint8_t *buf, uint8_t buf_size);
 /* True when actuators are enabled (device control) */
 bool ffb_actuators_enabled(void);
 
+/* Diagnostic counters for GUI debugging */
+typedef struct {
+    uint16_t rx_count;       /* total Output reports received (wraps) */
+    uint8_t  last_rid;       /* report ID of last received report      */
+    uint8_t  actv;           /* bit0=actuators_enabled, bit1=any_active */
+} FFB_DiagStats_t;
+
+FFB_DiagStats_t ffb_get_diag_stats(void);
+
 #ifdef __cplusplus
 }
 #endif

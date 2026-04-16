@@ -22,7 +22,7 @@ extern "C" {
 
 /* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
 #define HID_JOYSTICK_PAYLOAD_SIZE   2U
-#define HID_TELEMETRY_PAYLOAD_SIZE 48U
+#define HID_TELEMETRY_PAYLOAD_SIZE 52U
 #define HID_COMMAND_PAYLOAD_SIZE    8U
 #define HID_CONFIG_RESP_PAYLOAD_SIZE 6U
 
@@ -44,6 +44,9 @@ extern "C" {
  *   42       4    uint32  encoder_error Encoder::Error bitmask (0=no error)
  *   46       1    uint8   mag_agc       AS5047P AGC: 0=strong(close), 255=weak(far)
  *   47       1    uint8   mag_flags     bit0=COMP_H(too close), bit1=COMP_L(too far)
+ *   48       2    uint16  ffb_rx_count  count of FFB Output reports received via DataOut
+ *   50       1    uint8   ffb_last_rid  report ID of last received FFB Output report
+ *   51       1    uint8   ffb_actv      bit0=actuators_enabled, bit1=any_effect_active
  * ─────────────────────────────────────────────────────────────────────────── */
 typedef struct __attribute__((packed)) {
     float    pos_estimate;
@@ -59,9 +62,12 @@ typedef struct __attribute__((packed)) {
     uint32_t axis_error;
     uint32_t motor_error;
     uint32_t encoder_error;
-    uint8_t  mag_agc;    /* AS5047P: 0=strong field, 255=weak field, ~128=optimal */
-    uint8_t  mag_flags;  /* bit0=COMP_H (too close), bit1=COMP_L (too far)        */
-} HID_TelemetryPayload_t;          /* 48 bytes */
+    uint8_t  mag_agc;       /* AS5047P: 0=strong field, 255=weak field, ~128=optimal */
+    uint8_t  mag_flags;     /* bit0=COMP_H (too close), bit1=COMP_L (too far)        */
+    uint16_t ffb_rx_count;  /* increments each time an FFB Output report arrives     */
+    uint8_t  ffb_last_rid;  /* report ID of the last received FFB Output report      */
+    uint8_t  ffb_actv;      /* bit0=actuators_enabled, bit1=any_effect_active        */
+} HID_TelemetryPayload_t;          /* 52 bytes */
 
 /* ── Command feature payload (8 bytes) ───────────────────────────────────────
  *   See protocol.h for cmd_id and param_id definitions.

@@ -38,6 +38,9 @@ typedef struct {
     /* Block Load: which slot the host last asked to create */
     uint8_t     last_load_index;    /* 1-based                                 */
     uint8_t     last_load_status;   /* 1=success, 2=full, 3=error              */
+    /* Diagnostic counters */
+    uint16_t    rx_count;           /* increments each ffb_process_report call */
+    uint8_t     last_rx_rid;        /* report ID of last received report       */
 } FfbState_t;
 
 static FfbState_t s;
@@ -88,6 +91,9 @@ static uint8_t _alloc_slot(uint8_t requested_type)
 void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 {
     if (!data || len == 0U) return;
+
+    s.rx_count++;
+    s.last_rx_rid = report_id;
 
     switch (report_id) {
 
@@ -786,4 +792,18 @@ uint8_t ffb_get_pool_report(uint8_t *buf, uint8_t buf_size)
 bool ffb_actuators_enabled(void)
 {
     return s.actuators_enabled;
+}
+
+/* ── ffb_get_diag_stats ──────────────────────────────────────────────────── */
+FFB_DiagStats_t ffb_get_diag_stats(void)
+{
+    FFB_DiagStats_t d;
+    d.rx_count = s.rx_count;
+    d.last_rid = s.last_rx_rid;
+    d.actv     = (s.actuators_enabled ? 0x01U : 0x00U);
+    /* bit1: any effect currently active */
+    for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
+        if (s.effects[i].active) { d.actv |= 0x02U; break; }
+    }
+    return d;
 }
