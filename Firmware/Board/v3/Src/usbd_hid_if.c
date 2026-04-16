@@ -9,8 +9,19 @@
 
 /* ── Combined HID Report Descriptor ──────────────────────────────────────────
  *
- * Application Collection 1: Generic Desktop / Joystick  (Joystick + FFB PID)
+ * IMPORTANT: Three SEPARATE top-level Application Collections are required so
+ * that Windows creates hardware IDs for each:
+ *   - HID\VID_xxxx&UP:0001&U:0004  → Joystick (used by DirectInput axis)
+ *   - HID\VID_xxxx&UP:000F&U:0001  → PID      (required for FFB detection!)
+ *   - HID\VID_xxxx&UP:FF00&U:0001  → Vendor   (telemetry / commands)
+ *
+ * When PID reports are nested INSIDE the Joystick collection Windows does NOT
+ * create HID_DEVICE_UP:000F and DirectInput ignores the force-feedback reports.
+ *
+ * Application Collection 1: Generic Desktop / Joystick  (23 bytes)
  *   Report 0x01 (IN,  2 B)  — Joystick X axis
+ *
+ * Application Collection 2: Physical Interface Device    (399 bytes)
  *   Report 0x05 (Feat,10 B) — PID Set Effect
  *   Report 0x07 (Feat,12 B) — PID Set Condition (Spring / Damper)
  *   Report 0x08 (Feat, 3 B) — PID Set Constant Force
@@ -21,7 +32,7 @@
  *   Report 0x0F (Feat, 4 B) — PID Block Load   (GET_REPORT, device→host)
  *   Report 0x10 (Feat, 4 B) — PID Pool Report  (GET_REPORT, device→host)
  *
- * Application Collection 2: Vendor 0xFF00  (unchanged)
+ * Application Collection 3: Vendor 0xFF00  (53 bytes, unchanged)
  *   Report 0x02 (IN, 48 B) — Telemetry
  *   Report 0x03 (Feat,8 B) — Command (host→device)
  *   Report 0x04 (IN,  6 B) — Config Response
@@ -29,20 +40,18 @@
  * Total descriptor size must equal HID_REPORT_DESC_SIZE in usbd_hid.h.
  * ─────────────────────────────────────────────────────────────────────────── */
 /* NOTE: HID_REPORT_DESC_SIZE must equal the number of initialiser bytes below.
- * If you add/remove bytes and the count is LARGER than HID_REPORT_DESC_SIZE the
- * compiler will error ("excess elements in array initializer").
- * If smaller, the tail is zero-filled and the USB host may reject the descriptor.
- * Verified count: 470 bytes (417 Joystick+PID + 53 Vendor). */
+ * Verified count: 475 bytes (23 Joystick + 399 PID + 53 Vendor). */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * Application Collection 1: Generic Desktop / Joystick + PID
+     * Application Collection 1: Generic Desktop / Joystick  (23 bytes)
+     * Windows hardware ID: HID\VID_xxxx&UP:0001&U:0004
      * ═══════════════════════════════════════════════════════════════════════ */
     0x05, 0x01,        /* Usage Page (Generic Desktop)                        */
     0x09, 0x04,        /* Usage (Joystick)                                    */
     0xA1, 0x01,        /* Collection (Application)                            */
 
-      /* ── Report 0x01: Joystick X axis (IN, 2 bytes) ── */
+      /* ── Report 0x01: Joystick X axis (IN, 2 bytes payload) ── */
       0x85, HID_REPORT_ID_JOYSTICK,
       0x09, 0x30,      /* Usage (X)                                           */
       0x16, 0x00, 0x80,/* Logical Minimum (-32768)                            */
@@ -51,8 +60,16 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x95, 0x01,      /* Report Count (1)                                    */
       0x81, 0x02,      /* Input (Variable, Absolute)                          */
 
-      /* Switch to PID Usage Page for all following reports */
-      0x05, 0x0F,      /* Usage Page (Physical Interface Device)              */
+    0xC0,              /* End Collection (Joystick)                           */
+
+    /* ═══════════════════════════════════════════════════════════════════════
+     * Application Collection 2: Physical Interface Device / PID  (399 bytes)
+     * Windows hardware ID: HID\VID_xxxx&UP:000F&U:0001
+     * DirectInput reads this ID to enable Force Feedback support.
+     * ═══════════════════════════════════════════════════════════════════════ */
+    0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
+    0x09, 0x01,        /* Usage (Physical Interface Device)                   */
+    0xA1, 0x01,        /* Collection (Application)                            */
 
       /* ── Report 0x05: Set Effect (Feature, 10 bytes payload) ── */
       0x85, FFB_REPORT_SET_EFFECT,
@@ -281,10 +298,11 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x95, 0x01,
       0xB1, 0x02,
 
-    0xC0,              /* End Collection (Joystick + PID Application)         */
+    0xC0,              /* End Collection (PID Application)                    */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * Application Collection 2: Vendor 0xFF00 — unchanged
+     * Application Collection 3: Vendor 0xFF00 — unchanged  (53 bytes)
+     * Windows hardware ID: HID\VID_xxxx&UP:FF00&U:0001
      * ═══════════════════════════════════════════════════════════════════════ */
     0x06, 0x00, 0xFF,  /* Usage Page (Vendor Defined 0xFF00)                  */
     0x09, 0x01,        /* Usage (Vendor 1)                                    */
