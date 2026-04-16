@@ -346,15 +346,51 @@ extern "C" void hid_send_telemetry(void)
      *
      * fc = 15 Hz, dt = 10 ms → x = 2π × 15 × 0.01 = 0.942
      * alpha ≈ 1 − exp(−0.942) ≈ 0.610  (first-order Taylor)                */
-    float half_turns = g_config.steering_max_lock / 720.0f;
-    float joy_raw    = (t.pos_estimate / half_turns) * 32767.0f;
-    if (joy_raw >  32767.0f) joy_raw =  32767.0f;
-    if (joy_raw < -32767.0f) joy_raw = -32767.0f;
-    {
-        static float joy_filt = 0.0f;
-        joy_filt += 0.610f * (joy_raw - joy_filt);   /* α ≈ 0.610 @ 15 Hz  */
-        HID_Joystick_Send(static_cast<int16_t>(joy_filt));
+    // =========================
+    // JOYSTICK AXIS (FFB wheel)
+    // =========================
+
+    float max_lock = g_config.steering_max_lock;
+    if (max_lock < 10.0f) {
+        max_lock = 10.0f;
     }
+
+    float half_turns = max_lock / 720.0f;
+
+    float pos = t.pos_estimate;
+
+    // DEADZONE
+    const float DEADZONE = 0.0005f;
+
+    static float joy_filt = 0.0f;
+
+    if (fabsf(pos) < DEADZONE) {
+        pos = 0.0f;
+        joy_filt = 0.0f; // evita drift
+    }
+
+    // NORMALIZAÇÃO
+    float normalized = pos / half_turns;
+
+    // clamp
+    if (normalized > 1.0f)  normalized = 1.0f;
+    if (normalized < -1.0f) normalized = -1.0f;
+
+    // HID
+    float joy_raw = normalized * 32767.0f;
+
+    // FILTRO
+    const float ALPHA = 0.3f;
+    joy_filt += ALPHA * (joy_raw - joy_filt);
+
+    // CLAMP FINAL
+    int16_t joy_out = (int16_t)joy_filt;
+
+    if (joy_out > 32767) joy_out = 32767;
+    if (joy_out < -32767) joy_out = -32767;
+
+    // ENVIO
+    HID_Joystick_Send(joy_out);
 
     /* ── Telemetry (Report 0x02) — consumed by the GUI ── */
     HID_ODrive_SendTelemetry(&t);
