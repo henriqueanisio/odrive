@@ -56,8 +56,12 @@ void ffb_init(void)
 {
     memset(&s, 0, sizeof(s));
     s.device_gain       = 255U;
-    s.actuators_enabled = false;   /* enabled only after DC_ENABLE_ACTUATORS   */
-    s.last_load_status  = 1U;      /* success */
+    s.actuators_enabled = true;    /* auto-enabled: many games (LFS, AC, etc.)
+                                    * never send DC_ENABLE_ACTUATORS and expect
+                                    * the wheel to respond immediately.
+                                    * Games can still disable via Device Control. */
+    s.last_load_status  = 3U;      /* 3 = Block Load Error (no slot allocated yet)
+                                    * prevents DirectInput from using index 0     */
 }
 
 /* ── Internal: find a free slot for a new effect, return 1-based index ───── */
