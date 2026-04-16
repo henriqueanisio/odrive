@@ -557,4 +557,19 @@ extern "C" void hid_app_init(void)
         .ffb_test_off   = app_ffb_test_off,
     };
     protocol_init(&cb);
+
+    /* Auto-enter closed-loop control when motor AND encoder are both
+     * pre-calibrated.  For a sim racing wheel the motor is always meant to be
+     * active — there is no reason to stay in IDLE after a clean boot.
+     *
+     * Uses the ODrive startup-sequence mechanism (AXIS_STATE_STARTUP_SEQUENCE)
+     * with startup_closed_loop_control = true so the axis state machine handles
+     * all internal guards (is_calibrated_, error flags, etc.) correctly.
+     *
+     * If either flag is not set the axis stays in IDLE so the user can still
+     * run motor / encoder calibration from the GUI without interference.      */
+    if (g_config.motor_pre_calibrated != 0 && g_config.encoder_pre_calibrated != 0) {
+        axis0().config_.startup_closed_loop_control = true;
+        axis0().requested_state_ = Axis::AXIS_STATE_STARTUP_SEQUENCE;
+    }
 }

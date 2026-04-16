@@ -22,6 +22,12 @@ typedef struct {
     int16_t  neg_coeff;         /* 0..10000                                    */
     uint16_t pos_sat;           /* 0..10000                                    */
     uint16_t dead_band;         /* 0..10000 half-width                         */
+
+    /* Periodic (Sine / Square / Triangle) */
+    uint16_t per_magnitude;     /* 0..10000 — half-amplitude                   */
+    int16_t  per_offset;        /* -10000..+10000 — DC bias                    */
+    uint16_t per_phase;         /* 0..35999 centidegrees                       */
+    uint16_t per_period_ms;     /* oscillation period in ms (0 → 10 ms)        */
 } FfbEffect_t;
 
 typedef struct {
@@ -108,6 +114,19 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 
         s.last_load_index  = idx;
         s.last_load_status = 1U; /* success */
+        break;
+    }
+
+    case FFB_REPORT_SET_PERIODIC: {
+        if (len < sizeof(FFB_SetPeriodic_t)) break;
+        const FFB_SetPeriodic_t *r = (const FFB_SetPeriodic_t *)data;
+        uint8_t idx = r->effect_block_index;
+        if (idx == 0U || idx > FFB_MAX_EFFECTS) break;
+        FfbEffect_t *e       = &s.effects[idx - 1U];
+        e->per_magnitude     = r->magnitude;
+        e->per_offset        = r->offset;
+        e->per_phase         = r->phase;
+        e->per_period_ms     = (r->period > 0U) ? r->period : 10U;
         break;
     }
 
@@ -229,6 +248,45 @@ static float _iir_alpha(float fc_hz)
     return fclamp(alpha, 0.0f, 1.0f);
 }
 
+/* ── Fast periodic waveforms ────────────────────────────────────────────────
+ * All functions take normalised phase p ∈ [0, 1) for one full cycle and
+ * return a value in [−1, +1].  No calls to sinf/cosf — safe on bare-metal.
+ *
+ * _ffb_sin: parabolic approximation, max error < 8 %.  Sufficient for FFB.
+ *   Formula: fold to half-cycle, then 4p(1−p).
+ *
+ * _ffb_tri: triangle wave, exact.
+ *
+ * _ffb_square: exact square wave with hard edges.
+ * ─────────────────────────────────────────────────────────────────────────── */
+static float _ffb_sin(float p)
+{
+    /* wrap to [0, 1) */
+    p -= (float)(int32_t)p;
+    if (p < 0.0f) p += 1.0f;
+    float neg = (p >= 0.5f) ? -1.0f : 1.0f;
+    if (p >= 0.5f) p -= 0.5f;
+    p *= 2.0f;                   /* [0, 1) over the half-cycle              */
+    return neg * 4.0f * p * (1.0f - p);  /* parabola: 0→1→0                */
+}
+
+static float _ffb_tri(float p)
+{
+    p -= (float)(int32_t)p;
+    if (p < 0.0f) p += 1.0f;
+    /* Triangle: peak at 0, zero at 0.25, trough at 0.5, zero at 0.75      */
+    float d = p - 0.5f;
+    if (d < 0.0f) d = -d;        /* abs(p - 0.5) ∈ [0, 0.5]               */
+    return 4.0f * d - 1.0f;      /* maps [0..0.5] → [-1..1]                */
+}
+
+static float _ffb_square(float p)
+{
+    p -= (float)(int32_t)p;
+    if (p < 0.0f) p += 1.0f;
+    return (p < 0.5f) ? 1.0f : -1.0f;
+}
+
 /* ── Integer power for endstop curve — avoids powf() ───────────────────────
  * exp 1 = linear, 2 = quadratic, 3 = cubic, 4 = quartic.
  * Input t is assumed ∈ [0..1].                                              */
@@ -344,6 +402,28 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
             break;
         }
 
+        case FFB_ET_SINE:
+        case FFB_ET_SQUARE:
+        case FFB_ET_TRIANGLE: {
+            uint16_t period = (e->per_period_ms > 0U) ? e->per_period_ms : 10U;
+            uint32_t elapsed = now - e->start_tick;
+            float p = (float)(elapsed % (uint32_t)period) / (float)period;
+
+            /* Phase offset in centidegrees → normalised [0..1] */
+            p += (float)e->per_phase / 36000.0f;
+
+            float wave;
+            if (e->type == FFB_ET_SINE)          wave = _ffb_sin(p);
+            else if (e->type == FFB_ET_SQUARE)   wave = _ffb_square(p);
+            else                                 wave = _ffb_tri(p);
+
+            float mag = (float)e->per_magnitude / 10000.0f;
+            float off = (float)e->per_offset    / 10000.0f;
+            float t   = (wave * mag + off) * max_t;
+            di_const += t * eg;
+            break;
+        }
+
         case FFB_ET_SPRING: {
             float cp      = (float)e->cp_offset / 10000.0f;
             float err     = pos_turns - cp;
@@ -455,7 +535,14 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
      * turns/s (~0.02 RPM), tight enough to feel like real static friction.  */
     float phys_friction = 0.0f;
     {
-        const float VEL_EPS = 0.003f;   /* smooth-sign dead-zone (turns/s)  */
+        /* VEL_EPS = 0.02 turns/s ≈ 7°/s.
+         * A 600 PPR encoder in a 10 ms window has velocity quantization noise
+         * of ±1/(2400 × 0.01) ≈ ±0.042 turns/s near zero.  Using 0.003 (the
+         * theoretical "tight" value) causes the sign to flip with encoder noise
+         * every sample → alternating friction force at 50 Hz → buzzing.
+         * 0.02 turns/s is well above the noise floor yet still short enough
+         * that the user feels genuine static friction below ~7°/s.            */
+        const float VEL_EPS = 0.02f;    /* smooth-sign dead-zone (turns/s)  */
         float v_abs   = _fabs_f(vel_turns_s);
         float sign_v  = vel_turns_s / (v_abs + VEL_EPS);   /* smooth sign  */
 

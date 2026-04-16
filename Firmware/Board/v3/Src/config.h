@@ -207,7 +207,7 @@ typedef struct {
     .ffb_center_boost_width        = 0.12f,             \
     .ffb_static_friction           = 0.02f,             \
     .ffb_stribeck_vel              = 0.03f,             \
-    .ffb_inertia_filter_hz         = 25.0f,             \
+    .ffb_inertia_filter_hz         = 8.0f,              \
     .ffb_endstop_exp               = 2.5f,              \
     .ffb_thermal_tau               = 20.0f,             \
     .ffb_thermal_min               = 0.5f,              \

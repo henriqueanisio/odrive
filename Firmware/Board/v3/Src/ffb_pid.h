@@ -16,18 +16,25 @@ extern "C" {
 
 /* ── Effect types (match selector index in HID descriptor, 1-based) ─────────
  *   1 = ET_CONSTANT_FORCE  (usage 0x26)
- *   2 = ET_SPRING          (usage 0x40)
- *   3 = ET_DAMPER          (usage 0x41)
+ *   2 = ET_SINE            (usage 0x28)
+ *   3 = ET_SQUARE          (usage 0x29)
+ *   4 = ET_TRIANGLE        (usage 0x2A)
+ *   5 = ET_SPRING          (usage 0x40)
+ *   6 = ET_DAMPER          (usage 0x41)
  * ─────────────────────────────────────────────────────────────────────────── */
 #define FFB_ET_NONE      0U
 #define FFB_ET_CONSTANT  1U
-#define FFB_ET_SPRING    2U
-#define FFB_ET_DAMPER    3U
+#define FFB_ET_SINE      2U
+#define FFB_ET_SQUARE    3U
+#define FFB_ET_TRIANGLE  4U
+#define FFB_ET_SPRING    5U
+#define FFB_ET_DAMPER    6U
 
 /* ── HID PID report IDs (host → device, Feature/Output via EP0 SET_REPORT) ──
  *   IDs 1–4 reserved for existing joystick/telemetry/command/config reports.
  * ─────────────────────────────────────────────────────────────────────────── */
 #define FFB_REPORT_SET_EFFECT          0x05U
+#define FFB_REPORT_SET_PERIODIC        0x06U
 #define FFB_REPORT_SET_CONDITION       0x07U
 #define FFB_REPORT_SET_CONSTANT_FORCE  0x08U
 #define FFB_REPORT_EFFECT_OPERATION    0x0BU
@@ -77,6 +84,15 @@ typedef struct __attribute__((packed)) {
     uint16_t positive_saturation;  /* 0..10000                                  */
     uint16_t dead_band;            /* 0..10000  (half-width, centred on cp_offset) */
 } FFB_SetCondition_t;              /* 12 bytes                                  */
+
+/* Report 0x06 — Set Periodic (9 bytes) */
+typedef struct __attribute__((packed)) {
+    uint8_t  effect_block_index;
+    uint16_t magnitude;            /* 0..10000                                  */
+    int16_t  offset;               /* -10000..+10000 DC bias                   */
+    uint16_t phase;                /* 0..35999 centidegrees                     */
+    uint16_t period;               /* ms; 0 treated as 10 ms                   */
+} FFB_SetPeriodic_t;               /* 9 bytes                                   */
 
 /* Report 0x08 — Set Constant Force (3 bytes) */
 typedef struct __attribute__((packed)) {
