@@ -33,7 +33,7 @@
  *     Report 0x22 IN  ( 6 B) Config Response
  *     Report 0x21 FEATURE (8 B) Command
  *
- * Total = 23 + 1027 + 53 = 1103 bytes = HID_REPORT_DESC_SIZE.
+ * Total = 23 + 1031 + 53 = 1107 bytes = HID_REPORT_DESC_SIZE.
  * ─────────────────────────────────────────────────────────────────────────── */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
@@ -439,11 +439,13 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
           0x09, 0x9A,  /* DC Device Reset                                     */
           0x09, 0x9B,  /* DC Device Pause                                     */
           0x09, 0x9C,  /* DC Device Continue                                  */
-          0x15, 0x01,
-          0x25, 0x06,
-          0x75, 0x01,  /* Report Size (1) — bit flags                         */
-          0x95, 0x08,  /* Report Count (8)                                    */
-          0x91, 0x02,
+          0x15, 0x00,  /* Logical Minimum (0)                                 */
+          0x25, 0x01,  /* Logical Maximum (1)                                 */
+          0x75, 0x01,  /* Report Size (1) — one bit per flag                  */
+          0x95, 0x06,  /* Report Count (6)                                    */
+          0x91, 0x02,  /* Output (Variable)                                   */
+          0x95, 0x02,  /* Report Count (2) — padding to fill byte             */
+          0x91, 0x03,  /* Output (Constant)                                   */
         0xC0,
       0xC0,
       0x09, 0x7D,      /* Device Gain Report                                  */
