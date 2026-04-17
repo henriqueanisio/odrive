@@ -23,7 +23,7 @@ extern "C" {
 #define HID_REPORT_ID_CONFIG_RESP 0x22U
 
 /* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
-#define HID_JOYSTICK_PAYLOAD_SIZE   2U
+#define HID_JOYSTICK_PAYLOAD_SIZE   3U
 #define HID_TELEMETRY_PAYLOAD_SIZE 52U
 #define HID_COMMAND_PAYLOAD_SIZE    8U
 #define HID_CONFIG_RESP_PAYLOAD_SIZE 6U

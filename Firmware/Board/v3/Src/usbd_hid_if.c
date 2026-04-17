@@ -33,23 +33,35 @@
  *     Report 0x22 IN  ( 6 B) Config Response
  *     Report 0x21 FEATURE (8 B) Command
  *
- * Total = 23 + 1031 + 53 = 1107 bytes = HID_REPORT_DESC_SIZE.
+ * Total = 44 + 1027 + 53 = 1124 bytes = HID_REPORT_DESC_SIZE.
  * ─────────────────────────────────────────────────────────────────────────── */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * TLC1 — Generic Desktop / Joystick  (23 bytes)
+     * TLC1 — Generic Desktop / Joystick  (44 bytes)
+     * Report 0x01: 8 buttons (1 B) + X axis (2 B) = 3 B payload
      * ═══════════════════════════════════════════════════════════════════════ */
     0x05, 0x01,        /* Usage Page (Generic Desktop)                        */
     0x09, 0x04,        /* Usage (Joystick)                                    */
     0xA1, 0x01,        /* Collection (Application)                            */
-      0x85, 0x01,      /* Report ID (1)                                       */
-      0x09, 0x30,      /* Usage (X)                                           */
-      0x16, 0x00, 0x80,/* Logical Minimum (-32768)                            */
-      0x26, 0xFF, 0x7F,/* Logical Maximum (32767)                             */
-      0x75, 0x10,      /* Report Size (16)                                    */
-      0x95, 0x01,      /* Report Count (1)                                    */
-      0x81, 0x02,      /* Input (Variable, Absolute)                          */
+      0xA1, 0x00,      /* Collection (Physical)                               */
+        0x85, 0x01,    /* Report ID (1)                                       */
+        0x05, 0x09,    /* Usage Page (Button)                                 */
+        0x19, 0x01,    /* Usage Minimum (1)                                   */
+        0x29, 0x08,    /* Usage Maximum (8)                                   */
+        0x15, 0x00,    /* Logical Minimum (0)                                 */
+        0x25, 0x01,    /* Logical Maximum (1)                                 */
+        0x75, 0x01,    /* Report Size (1)                                     */
+        0x95, 0x08,    /* Report Count (8) — 8 buttons = 1 byte              */
+        0x81, 0x02,    /* Input (Variable)                                    */
+        0x05, 0x01,    /* Usage Page (Generic Desktop)                        */
+        0x09, 0x30,    /* Usage (X)                                           */
+        0x16, 0x00, 0x80, /* Logical Minimum (-32768)                         */
+        0x26, 0xFF, 0x7F, /* Logical Maximum (32767)                          */
+        0x75, 0x10,    /* Report Size (16)                                    */
+        0x95, 0x01,    /* Report Count (1)                                    */
+        0x81, 0x02,    /* Input (Variable, Absolute)                          */
+      0xC0,            /* End Collection (Physical)                           */
     0xC0,              /* End Collection (Joystick)                           */
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -439,13 +451,11 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
           0x09, 0x9A,  /* DC Device Reset                                     */
           0x09, 0x9B,  /* DC Device Pause                                     */
           0x09, 0x9C,  /* DC Device Continue                                  */
-          0x15, 0x00,  /* Logical Minimum (0)                                 */
-          0x25, 0x01,  /* Logical Maximum (1)                                 */
-          0x75, 0x01,  /* Report Size (1) — one bit per flag                  */
-          0x95, 0x06,  /* Report Count (6)                                    */
+          0x15, 0x01,  /* Logical Minimum (1)                                 */
+          0x25, 0x06,  /* Logical Maximum (6)                                 */
+          0x75, 0x01,  /* Report Size (1)                                     */
+          0x95, 0x08,  /* Report Count (8)                                    */
           0x91, 0x02,  /* Output (Variable)                                   */
-          0x95, 0x02,  /* Report Count (2) — padding to fill byte             */
-          0x91, 0x03,  /* Output (Constant)                                   */
         0xC0,
       0xC0,
       0x09, 0x7D,      /* Device Gain Report                                  */
@@ -596,10 +606,11 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
 uint8_t HID_Joystick_Send(int16_t value)
 {
-    uint8_t report[3];
+    uint8_t report[1 + HID_JOYSTICK_PAYLOAD_SIZE];
     report[0] = HID_REPORT_ID_JOYSTICK;
-    report[1] = (uint8_t)(value & 0xFF);
-    report[2] = (uint8_t)(value >> 8);
+    report[1] = 0;                          /* buttons byte — all released    */
+    report[2] = (uint8_t)(value & 0xFF);    /* X axis low byte                */
+    report[3] = (uint8_t)(value >> 8);      /* X axis high byte               */
     return hid_queue_push(report, sizeof(report));
 }
 
