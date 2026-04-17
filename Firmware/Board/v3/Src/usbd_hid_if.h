@@ -11,14 +11,16 @@ extern "C" {
 
 /* ── Report IDs ──────────────────────────────────────────────────────────────
  *   0x01 — Joystick  Input  (2 bytes)    Generic Desktop — joy.cpl
- *   0x02 — Telemetry Input  (37 bytes)   Vendor 0xFF00   — GUI live data
- *   0x03 — Command   Feature (8 bytes)   Vendor 0xFF00   — host → device
- *   0x04 — CfgResp   Input   (6 bytes)   Vendor 0xFF00   — GET_CONFIG reply
+ *   0x01..0x0D — FFB OUT/IN             PID — joy.cpl FFB tab
+ *   0x11..0x13 — FFB Feature            PID — block load/pool
+ *   0x20 — Telemetry Input (52 bytes)   Vendor 0xFF00   — GUI live data
+ *   0x21 — Command   Feature (8 bytes)  Vendor 0xFF00   — host → device
+ *   0x22 — CfgResp   Input   (6 bytes)  Vendor 0xFF00   — GET_CONFIG reply
  * ─────────────────────────────────────────────────────────────────────────── */
 #define HID_REPORT_ID_JOYSTICK    0x01U
-#define HID_REPORT_ID_TELEMETRY   0x02U
-#define HID_REPORT_ID_COMMAND     0x03U
-#define HID_REPORT_ID_CONFIG_RESP 0x04U
+#define HID_REPORT_ID_TELEMETRY   0x20U  /* renamed: 0x02-0x13 reserved for FFB */
+#define HID_REPORT_ID_COMMAND     0x21U
+#define HID_REPORT_ID_CONFIG_RESP 0x22U
 
 /* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
 #define HID_JOYSTICK_PAYLOAD_SIZE   2U

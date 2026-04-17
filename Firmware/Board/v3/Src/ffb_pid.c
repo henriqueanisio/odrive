@@ -182,29 +182,27 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
     }
 
     case FFB_REPORT_DEVICE_CONTROL: {
-        if (len < sizeof(FFB_DeviceControl_t)) break;
+        if (len < 1U) break;
         uint8_t ctrl = data[0];
-        switch (ctrl) {
-            case FFB_DC_ENABLE_ACTUATORS:
-                s.actuators_enabled = true;
-                s.paused            = false;
-                break;
-            case FFB_DC_DISABLE_ACTUATORS:
-                s.actuators_enabled = false;
-                break;
-            case FFB_DC_STOP_ALL_EFFECTS:
-                for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) s.effects[i].active = false;
-                break;
-            case FFB_DC_DEVICE_RESET:
-                ffb_init();
-                break;
-            case FFB_DC_DEVICE_PAUSE:
-                s.paused = true;
-                break;
-            case FFB_DC_DEVICE_CONTINUE:
-                s.paused = false;
-                break;
-            default: break;
+        /* Bit flags per OpenFFBoard DEVCTRLREP (8×1-bit Variable) */
+        if (ctrl & FFB_DC_ENABLE_ACTUATORS) {
+            s.actuators_enabled = true;
+            s.paused            = false;
+        }
+        if (ctrl & FFB_DC_DISABLE_ACTUATORS) {
+            s.actuators_enabled = false;
+        }
+        if (ctrl & FFB_DC_STOP_ALL_EFFECTS) {
+            for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) s.effects[i].active = false;
+        }
+        if (ctrl & FFB_DC_DEVICE_RESET) {
+            ffb_init();
+        }
+        if (ctrl & FFB_DC_DEVICE_PAUSE) {
+            s.paused = true;
+        }
+        if (ctrl & FFB_DC_DEVICE_CONTINUE) {
+            s.paused = false;
         }
         break;
     }

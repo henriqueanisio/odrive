@@ -14,65 +14,82 @@ extern "C" {
  * ─────────────────────────────────────────────────────────────────────────── */
 #define FFB_MAX_EFFECTS  4U
 
-/* ── Effect types (match selector index in HID descriptor, 1-based) ─────────
- *   1 = ET_CONSTANT_FORCE  (usage 0x26)
- *   2 = ET_SINE            (usage 0x28)
- *   3 = ET_SQUARE          (usage 0x29)
- *   4 = ET_TRIANGLE        (usage 0x2A)
- *   5 = ET_SPRING          (usage 0x40)
- *   6 = ET_DAMPER          (usage 0x41)
+/* ── Effect types — selector index in HID descriptor, 1-based (OpenFFBoard) ──
+ *   1 = ET_CONSTANT_FORCE   (usage 0x26)
+ *   2 = ET_RAMP             (usage 0x27)
+ *   3 = ET_SQUARE           (usage 0x30)
+ *   4 = ET_SINE             (usage 0x31)
+ *   5 = ET_TRIANGLE         (usage 0x32)
+ *   6 = ET_SAWTOOTH_UP      (usage 0x33)
+ *   7 = ET_SAWTOOTH_DOWN    (usage 0x34)
+ *   8 = ET_SPRING           (usage 0x40)
+ *   9 = ET_DAMPER           (usage 0x41)
+ *  10 = ET_INERTIA          (usage 0x42)
+ *  11 = ET_FRICTION         (usage 0x43)
  * ─────────────────────────────────────────────────────────────────────────── */
-#define FFB_ET_NONE      0U
-#define FFB_ET_CONSTANT  1U
-#define FFB_ET_SINE      2U
-#define FFB_ET_SQUARE    3U
-#define FFB_ET_TRIANGLE  4U
-#define FFB_ET_SPRING    5U
-#define FFB_ET_DAMPER    6U
+#define FFB_ET_NONE         0U
+#define FFB_ET_CONSTANT     1U
+#define FFB_ET_RAMP         2U
+#define FFB_ET_SQUARE       3U
+#define FFB_ET_SINE         4U
+#define FFB_ET_TRIANGLE     5U
+#define FFB_ET_SAWTOOTHUP   6U
+#define FFB_ET_SAWTOOTHDOWN 7U
+#define FFB_ET_SPRING       8U
+#define FFB_ET_DAMPER       9U
+#define FFB_ET_INERTIA     10U
+#define FFB_ET_FRICTION    11U
 
-/* ── HID PID report IDs (host → device, Feature/Output via EP0 SET_REPORT) ──
- *   IDs 1–4 reserved for existing joystick/telemetry/command/config reports.
+/* ── HID PID report IDs — matches OpenFFBoard (FFB_ID_OFFSET=0) ─────────────
+ *   Output reports (host → device via OUT endpoint or SET_REPORT):
  * ─────────────────────────────────────────────────────────────────────────── */
-#define FFB_REPORT_SET_EFFECT          0x05U
-#define FFB_REPORT_SET_PERIODIC        0x06U
-#define FFB_REPORT_SET_CONDITION       0x07U
-#define FFB_REPORT_SET_CONSTANT_FORCE  0x08U
-#define FFB_REPORT_EFFECT_OPERATION    0x0BU
+#define FFB_REPORT_SET_EFFECT          0x01U
+#define FFB_REPORT_SET_ENVELOPE        0x02U
+#define FFB_REPORT_SET_CONDITION       0x03U
+#define FFB_REPORT_SET_PERIODIC        0x04U
+#define FFB_REPORT_SET_CONSTANT_FORCE  0x05U
+#define FFB_REPORT_SET_RAMP            0x06U
+#define FFB_REPORT_EFFECT_OPERATION    0x0AU
+#define FFB_REPORT_BLOCK_FREE          0x0BU
 #define FFB_REPORT_DEVICE_CONTROL      0x0CU
 #define FFB_REPORT_DEVICE_GAIN         0x0DU
+#define FFB_REPORT_CREATE_NEW_EFFECT   0x11U
 
 /* HID PID report IDs (device → host) */
-#define FFB_REPORT_PID_STATE           0x0EU  /* IN  — polled via joystick send */
-#define FFB_REPORT_PID_BLOCK_LOAD      0x0FU  /* Feature GET_REPORT              */
-#define FFB_REPORT_PID_POOL            0x10U  /* Feature GET_REPORT              */
+#define FFB_REPORT_PID_STATE           0x02U  /* IN  — same direction as envelope, OK */
+#define FFB_REPORT_PID_BLOCK_LOAD      0x12U  /* Feature GET_REPORT              */
+#define FFB_REPORT_PID_POOL            0x13U  /* Feature GET_REPORT              */
 
 /* ── Effect Operation op-codes ───────────────────────────────────────────── */
 #define FFB_OP_START       1U
 #define FFB_OP_START_SOLO  2U
 #define FFB_OP_STOP        3U
 
-/* ── Device Control op-codes ─────────────────────────────────────────────── */
-#define FFB_DC_ENABLE_ACTUATORS   1U
-#define FFB_DC_DISABLE_ACTUATORS  2U
-#define FFB_DC_STOP_ALL_EFFECTS   3U
-#define FFB_DC_DEVICE_RESET       4U
-#define FFB_DC_DEVICE_PAUSE       5U
-#define FFB_DC_DEVICE_CONTINUE    6U
+/* ── Device Control bit flags (OpenFFBoard bit-flag approach, 1 bit per cmd) ─
+ *   Host sends one byte; each bit = one DC command.
+ *   Bit 0 = Enable Actuators, Bit 1 = Disable, Bit 2 = Stop All, etc.       */
+#define FFB_DC_ENABLE_ACTUATORS   0x01U
+#define FFB_DC_DISABLE_ACTUATORS  0x02U
+#define FFB_DC_STOP_ALL_EFFECTS   0x04U
+#define FFB_DC_DEVICE_RESET       0x08U
+#define FFB_DC_DEVICE_PAUSE       0x10U
+#define FFB_DC_DEVICE_CONTINUE    0x20U
 
 /* ── HID PID packed report structures (host → device) ───────────────────────
  * Byte layout must match the HID report descriptor exactly.
  * ─────────────────────────────────────────────────────────────────────────── */
 
-/* Report 0x05 — Set Effect (11 bytes) */
+/* Report 0x01 — Set Effect (12 bytes, matches OpenFFBoard SETEFREP) */
 typedef struct __attribute__((packed)) {
     uint8_t  effect_block_index;   /* 1-based slot                              */
-    uint8_t  effect_type;          /* FFB_ET_xxx selector (1=const,2=spr,3=dmp) */
-    uint16_t duration;             /* ms; 0xFFFF = infinite                     */
+    uint8_t  effect_type;          /* FFB_ET_xxx selector (1=const..11=friction) */
+    uint16_t duration;             /* ms; 0x7FFF = infinite                     */
     uint16_t trigger_repeat;       /* ms                                        */
     uint16_t sample_period;        /* ms                                        */
+    uint16_t start_delay;          /* ms                                        */
     uint8_t  gain;                 /* 0–255                                     */
     uint8_t  trigger_button;       /* 0 = no trigger                            */
-} FFB_SetEffect_t;                 /* 10 bytes                                  */
+} FFB_SetEffect_t;                 /* 12 bytes                                  */
 
 /* Report 0x07 — Set Condition (13 bytes) */
 typedef struct __attribute__((packed)) {
@@ -100,12 +117,12 @@ typedef struct __attribute__((packed)) {
     int16_t magnitude;             /* -10000..+10000                            */
 } FFB_SetConstantForce_t;          /* 3 bytes                                   */
 
-/* Report 0x0B — Effect Operation (4 bytes) */
+/* Report 0x0A — Effect Operation (3 bytes; loop_count is 8-bit per EFOPREP) */
 typedef struct __attribute__((packed)) {
     uint8_t  effect_block_index;
     uint8_t  operation;            /* FFB_OP_xxx                                */
-    uint16_t loop_count;           /* 0xFFFF = infinite                         */
-} FFB_EffectOperation_t;           /* 4 bytes                                   */
+    uint8_t  loop_count;           /* 0xFF = infinite; 8-bit per descriptor     */
+} FFB_EffectOperation_t;           /* 3 bytes                                   */
 
 /* Report 0x0C — Device Control (1 byte) */
 typedef struct __attribute__((packed)) {

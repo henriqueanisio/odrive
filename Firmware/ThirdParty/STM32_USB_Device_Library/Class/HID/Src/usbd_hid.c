@@ -154,7 +154,6 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                                 MIN(req->wLength, HID_FEATURE_REPORT_BUF_SIZE));
                 break;
             case HID_REQ_GET_REPORT: {
-                /* PID Block Load (0x0F) and PID Pool (0x10) are read by DirectInput */
                 static uint8_t pid_resp[8];
                 uint8_t report_id = (uint8_t)(req->wValue & 0xFFU);
                 uint8_t resp_len  = 0U;
@@ -162,6 +161,13 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                     resp_len = ffb_get_block_load_report(pid_resp, sizeof(pid_resp));
                 } else if (report_id == FFB_REPORT_PID_POOL) {
                     resp_len = ffb_get_pool_report(pid_resp, sizeof(pid_resp));
+                } else if (report_id == FFB_REPORT_CREATE_NEW_EFFECT) {
+                    /* Return supported effect types (array selector 0 = idle) */
+                    pid_resp[0] = FFB_REPORT_CREATE_NEW_EFFECT;
+                    pid_resp[1] = 0x00U; /* effect_type = none pending */
+                    pid_resp[2] = 0x00U; /* byte_count low  */
+                    pid_resp[3] = 0x00U; /* byte_count high + padding */
+                    resp_len    = 4U;
                 }
                 if (resp_len > 0U) {
                     USBD_CtlSendData(pdev, pid_resp, MIN(resp_len, req->wLength));
@@ -269,11 +275,12 @@ static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
     /* FeatureBuf[0] = Report ID, FeatureBuf[1..] = payload */
     uint8_t report_id = hhid->FeatureBuf[0];
 
-    if (report_id == 0x03U) {
-        /* Vendor command report → existing protocol handler */
+    if (report_id == 0x21U) {
+        /* Vendor command Feature report (ID 0x21) → protocol handler */
         HID_ODrive_ProcessCommand(&hhid->FeatureBuf[1]);
-    } else if (report_id >= FFB_REPORT_SET_EFFECT &&
-               report_id <= FFB_REPORT_DEVICE_GAIN) {
+    } else if ((report_id >= FFB_REPORT_SET_EFFECT &&
+                report_id <= FFB_REPORT_DEVICE_GAIN) ||
+               report_id == FFB_REPORT_CREATE_NEW_EFFECT) {
         /* HID PID FFB reports → force feedback state machine */
         uint16_t payload_len = (uint16_t)(HID_FEATURE_REPORT_BUF_SIZE - 1U);
         ffb_process_report(report_id, &hhid->FeatureBuf[1], payload_len);
@@ -305,7 +312,7 @@ static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
         {
             uint8_t report_id = buf[0];
 
-            // 🔥 FILTRO SOMENTE FFB
+                /* Filter: FFB Output reports 0x01..0x0D */
             if (report_id >= FFB_REPORT_SET_EFFECT &&
                 report_id <= FFB_REPORT_DEVICE_GAIN)
             {
