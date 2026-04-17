@@ -160,17 +160,26 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
 
                 if (report_id == 0x11) { // PID POOL
                     pid_resp[0] = 0x11;
-                    pid_resp[1] = 0x01; // max effects
-                    pid_resp[2] = 0x01; // memory (low)
-                    pid_resp[3] = 0x00; // memory (high)
-                    resp_len = 4;
+                    pid_resp[1] = 0x01;
+                    pid_resp[2] = 0x00;
+                    pid_resp[3] = 0x01;
+                    pid_resp[4] = 0x01;
+                    resp_len = 5;
                 }
-                else if (report_id == 0x12) { // CREATE NEW EFFECT
+                else if (report_id == 0x12) { // CREATE EFFECT
                     pid_resp[0] = 0x12;
-                    pid_resp[1] = 0x01; // effect id
+                    pid_resp[1] = 0x01;
                     pid_resp[2] = 0x00;
                     pid_resp[3] = 0x00;
                     resp_len = 4;
+                }
+                else if (report_id == 0x06) { // BLOCK LOAD
+                    pid_resp[0] = 0x06;
+                    pid_resp[1] = 0x01;
+                    pid_resp[2] = 0x01;
+                    pid_resp[3] = 0xFF;
+                    pid_resp[4] = 0x00;
+                    resp_len = 5;
                 }
 
                 if (resp_len > 0U) {
