@@ -24,8 +24,8 @@ extern "C" {
 #define USB_HID_CONFIG_DESC_SIZ     41U
 #define USB_HID_DESC_SIZ            9U
 
-/* 1 outer Joystick App: Physical(44) + FFB direct(1020) + Vendor nested(53) = 1117 bytes */
-#define HID_REPORT_DESC_SIZE       1117U
+/* TLC1 Joystick(44) + TLC2 PID(1027) + TLC3 Vendor(53) = 1124 bytes */
+#define HID_REPORT_DESC_SIZE       1124U
 
 #define HID_DESCRIPTOR_TYPE         0x21U
 #define HID_REPORT_DESC_TYPE        0x22U

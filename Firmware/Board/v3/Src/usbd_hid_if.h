@@ -17,7 +17,7 @@ extern "C" {
  *   0x21 — Command   Feature (8 bytes)  Vendor 0xFF00   — host → device
  *   0x22 — CfgResp   Input   (6 bytes)  Vendor 0xFF00   — GET_CONFIG reply
  * ─────────────────────────────────────────────────────────────────────────── */
-#define HID_REPORT_ID_JOYSTICK    0x01U  /* same as OpenFFBoard — Input 0x01 vs Output 0x01 is unambiguous */
+#define HID_REPORT_ID_JOYSTICK    0x40U  /* 0x40 avoids global Report ID conflict with PID 0x01 */
 #define HID_REPORT_ID_TELEMETRY   0x20U  /* renamed: 0x02-0x13 reserved for FFB */
 #define HID_REPORT_ID_COMMAND     0x21U
 #define HID_REPORT_ID_CONFIG_RESP 0x22U

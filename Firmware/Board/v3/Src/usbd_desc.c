@@ -242,7 +242,7 @@ __ALIGN_BEGIN uint8_t USBD_FS_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END =
   HIBYTE(USBD_VID),           /*idVendor*/
   LOBYTE(USBD_PID_FS),        /*idProduct*/
   HIBYTE(USBD_PID_FS),        /*idProduct*/
-  0x0E,                       /*bcdDevice LSB: rel. 3.0E — OpenFFBoard-exact: 1 App, FFB direto */
+  0x0F,                       /*bcdDevice LSB: rel. 3.0F — 3 TLCs sep., Joystick ID=0x40 */
   0x03,                       /*bcdDevice MSB                                    */
   USBD_IDX_MFC_STR,           /*Index of manufacturer  string*/
   USBD_IDX_PRODUCT_STR,       /*Index of product string*/
