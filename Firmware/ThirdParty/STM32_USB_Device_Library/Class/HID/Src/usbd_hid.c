@@ -206,7 +206,8 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                 }
 
                 if (resp_len > 0U) {
-                    USBD_CtlSendData(pdev, pid_resp, MIN(resp_len, req->wLength));
+                    memset(pid_resp + resp_len, 0, req->wLength - resp_len);
+                    USBD_CtlSendData(pdev, pid_resp, req->wLength);
                 } else {
                     USBD_CtlError(pdev, req);
                     return USBD_FAIL;
