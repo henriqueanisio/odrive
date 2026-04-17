@@ -5,33 +5,26 @@
 
 /* ── Combined HID Report Descriptor ──────────────────────────────────────────
  *
- * THREE Top-Level Collections so Windows loads the right drivers:
+ * ONE outer Joystick Application containing TWO nested Applications.
+ * This is the OpenFFBoard-proven structure — Windows parser requires nested
+ * collections, not three separate top-level Application Collections.
  *
- *   TLC1 — Generic Desktop / Joystick  (UP:0001 U:0004)  23 bytes
+ *   Outer — Generic Desktop / Joystick  (UP:0001 U:0004)
  *     Generates HID_DEVICE_SYSTEM_GAME → hidgame.sys → joy.cpl game tab
- *     Report 0x01 IN  (2 B)  Joystick X axis
  *
- *   TLC2 — Physical Interface Device   (UP:000F U:0001)  1027 bytes
- *     Generates HID_DEVICE_SYSTEM_PID  → hidpid.sys  → joy.cpl FF tab ← KEY
- *     Report 0x02 IN  (1 B)  PID State
- *     Report 0x01 OUT (12 B) Set Effect
- *     Report 0x02 OUT ( 9 B) Set Envelope
- *     Report 0x03 OUT (12 B) Set Condition
- *     Report 0x04 OUT (11 B) Set Periodic
- *     Report 0x05 OUT ( 3 B) Set Constant Force
- *     Report 0x06 OUT ( 5 B) Set Ramp
- *     Report 0x0A OUT ( 4 B) Effect Operation
- *     Report 0x0B OUT ( 1 B) Block Free
- *     Report 0x0C OUT ( 1 B) Device Control
- *     Report 0x0D OUT ( 1 B) Device Gain
- *     Report 0x11 FEATURE (3 B) Create New Effect
- *     Report 0x12 FEATURE (4 B) Block Load
- *     Report 0x13 FEATURE (4 B) PID Pool
+ *     Physical sub-collection (44 bytes):
+ *       Report 0x01 IN  (3 B)  8 buttons + X axis
  *
- *   TLC3 — Vendor 0xFF00                (UP:FF00 U:0001)  53 bytes
- *     Report 0x20 IN  (52 B) Telemetry
- *     Report 0x22 IN  ( 6 B) Config Response
- *     Report 0x21 FEATURE (8 B) Command
+ *     Nested PID Application  (UP:000F U:0001)  (1027 bytes):
+ *       Generates HID_DEVICE_SYSTEM_PID → hidpid.sys → joy.cpl FF tab ← KEY
+ *       Report 0x02 IN  (1 B)  PID State
+ *       Reports 0x01-0x0D OUT  FFB effect/control
+ *       Reports 0x11-0x13 FEATURE  Create/Block/Pool
+ *
+ *     Nested Vendor Application  (UP:FF00 U:0001)  (53 bytes):
+ *       Report 0x20 IN  (52 B) Telemetry
+ *       Report 0x22 IN  ( 6 B) Config Response
+ *       Report 0x21 FEATURE (8 B) Command
  *
  * Total = 44 + 1027 + 53 = 1124 bytes = HID_REPORT_DESC_SIZE.
  * ─────────────────────────────────────────────────────────────────────────── */
@@ -62,16 +55,16 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0x95, 0x01,    /* Report Count (1)                                    */
         0x81, 0x02,    /* Input (Variable, Absolute)                          */
       0xC0,            /* End Collection (Physical)                           */
-    0xC0,              /* End Collection (Joystick)                           */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * TLC2 — Physical Interface Device  (1027 bytes)
-     * Presence of this UP:000F TLC causes Windows to load hidpid.sys
-     * and show the Force Feedback tab in joy.cpl.
+     * Nested PID Application  (UP:000F U:0001)  — 1027 bytes
+     * Nested inside the outer Joystick Application (OpenFFBoard approach).
+     * Windows sees UP:000F → generates HID_DEVICE_SYSTEM_PID → hidpid.sys
+     * and shows the Force Feedback tab in joy.cpl.
      * ═══════════════════════════════════════════════════════════════════════ */
     0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
     0x09, 0x01,        /* Usage (Physical Interface Device)                   */
-    0xA1, 0x01,        /* Collection (Application)                            */
+    0xA1, 0x01,        /* Collection (Application) — nested inside Joystick   */
 
       /* ── PID State Report 0x02 INPUT (STATEREP, 37 bytes) ── */
       0x05, 0x0F,      /* Usage Page (Physical Interface Device)              */
@@ -570,11 +563,11 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
     0xC0,              /* End Collection (Physical Interface Device)          */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * TLC3 — Vendor 0xFF00  (53 bytes)
+     * Nested Vendor Application  (UP:FF00 U:0001)  — 53 bytes
      * ═══════════════════════════════════════════════════════════════════════ */
     0x06, 0x00, 0xFF,  /* Usage Page (Vendor Defined 0xFF00)                  */
     0x09, 0x01,        /* Usage (Vendor 1)                                    */
-    0xA1, 0x01,        /* Collection (Application)                            */
+    0xA1, 0x01,        /* Collection (Application) — nested inside Joystick   */
 
       0x85, HID_REPORT_ID_TELEMETRY,
       0x09, 0x02,
@@ -600,7 +593,8 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x95, HID_COMMAND_PAYLOAD_SIZE,
       0xB1, 0x02,
 
-    0xC0,              /* End Collection (Vendor)                             */
+    0xC0,              /* End Collection (Vendor — nested)                    */
+    0xC0,              /* End Collection (Outer Joystick Application)         */
 };
 
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
