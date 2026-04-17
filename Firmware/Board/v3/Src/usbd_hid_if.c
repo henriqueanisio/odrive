@@ -25,10 +25,7 @@
  *   Report 0x0F (Feat, 4 B) — PID Block Load   (device→host)
  *   Report 0x10 (Feat, 4 B) — PID Pool Report  (device→host)
  *
- * Application Collection 2: Physical Interface Device  (22 bytes)
- *   Placeholder — creates HID\UP:000F hardware ID for FFB device detection.
- *
- * Application Collection 3: Vendor 0xFF00  (53 bytes)
+ * Application Collection 2: Vendor 0xFF00  (53 bytes)
  *   Report 0x02 (IN, 52 B) — Telemetry
  *   Report 0x03 (Feat,8 B) — Command
  *   Report 0x04 (IN,  6 B) — Config Response
@@ -347,22 +344,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
     0xC0,              /* End Collection (Joystick + PID Application)         */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * Application Collection 2: Physical Interface Device placeholder (22 bytes)
-     * ═══════════════════════════════════════════════════════════════════════ */
-    0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
-    0x09, 0x01,        /* Usage (Physical Interface Device)                   */
-    0xA1, 0x01,        /* Collection (Application)                            */
-      0x85, 0x11,      /* Report ID 0x11 (placeholder, never used)            */
-      0x09, 0x7C,      /* Usage (Device Gain)                                 */
-      0x15, 0x00,      /* Logical Minimum (0)                                 */
-      0x26, 0xFF, 0x00,/* Logical Maximum (255)                               */
-      0x75, 0x08,      /* Report Size (8)                                     */
-      0x95, 0x01,      /* Report Count (1)                                    */
-      0xB1, 0x02,      /* Feature (Variable)                                  */
-    0xC0,              /* End Collection (PID placeholder)                    */
-
-    /* ═══════════════════════════════════════════════════════════════════════
-     * Application Collection 3: Vendor 0xFF00  (53 bytes)
+     * Application Collection 2: Vendor 0xFF00
      * ═══════════════════════════════════════════════════════════════════════ */
     0x06, 0x00, 0xFF,  /* Usage Page (Vendor Defined 0xFF00)                  */
     0x09, 0x01,        /* Usage (Vendor 1)                                    */
