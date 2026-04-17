@@ -78,21 +78,14 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[] __ALIGN_END = {
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
 uint8_t HID_Joystick_Send(int16_t value)
 {
-    uint8_t report[1 + HID_JOYSTICK_PAYLOAD_SIZE];
-    report[0] = HID_REPORT_ID_JOYSTICK;
-    report[1] = 0;                          /* buttons byte — all released    */
-    report[2] = (uint8_t)(value & 0xFF);    /* X axis low byte                */
-    report[3] = (uint8_t)(value >> 8);      /* X axis high byte               */
-    return hid_queue_push(report, sizeof(report));
+    (void)value;
+    return USBD_OK; // desabilitado
 }
 
-/* ── HID_ODrive_SendTelemetry ────────────────────────────────────────────── */
 uint8_t HID_ODrive_SendTelemetry(const HID_TelemetryPayload_t *payload)
 {
-    uint8_t report[1 + HID_TELEMETRY_PAYLOAD_SIZE];
-    report[0] = HID_REPORT_ID_TELEMETRY;
-    memcpy(&report[1], payload, HID_TELEMETRY_PAYLOAD_SIZE);
-    return hid_queue_push(report, sizeof(report));
+    (void)payload;
+    return USBD_OK; // desabilitado
 }
 
 /* ── HID_ODrive_SendConfigResponse ──────────────────────────────────────── */
