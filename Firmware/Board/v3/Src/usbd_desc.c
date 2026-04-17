@@ -242,7 +242,7 @@ __ALIGN_BEGIN uint8_t USBD_FS_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END =
   HIBYTE(USBD_VID),           /*idVendor*/
   LOBYTE(USBD_PID_FS),        /*idProduct*/
   HIBYTE(USBD_PID_FS),        /*idProduct*/
-  0x08,                       /*bcdDevice LSB: rel. 3.08 — OpenFFBoard-exact descriptor */
+  0x09,                       /*bcdDevice LSB: rel. 3.09 — 3-TLC descriptor (PID TLC added) */
   0x03,                       /*bcdDevice MSB                                    */
   USBD_IDX_MFC_STR,           /*Index of manufacturer  string*/
   USBD_IDX_PRODUCT_STR,       /*Index of product string*/
