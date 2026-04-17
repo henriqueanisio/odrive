@@ -9,53 +9,38 @@
 
 /* ── Combined HID Report Descriptor ──────────────────────────────────────────
  *
- * HYBRID STRUCTURE — required for DirectInput FFB to work correctly:
+ * CORRECT STRUCTURE for DirectInput FFB:
  *
- * Problem: DirectInput opens the Joystick collection (Col01, UP:0001) and reads
- * PID reports FROM THAT COLLECTION to enable FFB. If PID reports are in a
- * separate PID collection (Col02), DirectInput cannot find them when it opens
- * the joystick device and will NOT enable force feedback.
+ * DirectInput opens the HID\UP:000F&U:0001 device (Physical Interface Device
+ * TLC) to read PID reports. All PID reports MUST live in TLC2 (PID collection).
  *
- * Solution: Put all PID reports INSIDE the Joystick collection (so DirectInput
- * finds them), AND add a minimal placeholder PID collection (Col02) that creates
- * the HID\UP:000F hardware ID that Windows/games use to detect FFB capability.
+ * Application Collection 1: Generic Desktop / Joystick  (23 bytes)
+ *   Report 0x01 (IN, 2 B) — Joystick X axis
  *
- * Application Collection 1: Generic Desktop / Joystick  (417 bytes)
- *   Report 0x01 (IN,  2 B)  — Joystick X axis
- *   Report 0x05 (Out, 10 B) — PID Set Effect           (Output → OUT ep)
- *   Report 0x06 (Out,  9 B) — PID Set Periodic         (Output → OUT ep)
- *   Report 0x07 (Out, 12 B) — PID Set Condition        (Output → OUT ep)
- *   Report 0x08 (Out,  3 B) — PID Set Constant Force   (Output → OUT ep)
- *   Report 0x0B (Out,  4 B) — PID Effect Operation     (Output → OUT ep)
- *   Report 0x0C (Out,  1 B) — PID Device Control       (Output → OUT ep)
- *   Report 0x0D (Out,  1 B) — PID Device Gain          (Output → OUT ep)
+ * Application Collection 2: Physical Interface Device   (478 bytes)
+ *   Report 0x05 (Out, 10 B) — PID Set Effect
+ *   Report 0x06 (Out,  9 B) — PID Set Periodic
+ *   Report 0x07 (Out, 12 B) — PID Set Condition
+ *   Report 0x08 (Out,  3 B) — PID Set Constant Force
+ *   Report 0x0B (Out,  4 B) — PID Effect Operation
+ *   Report 0x0C (Out,  1 B) — PID Device Control
+ *   Report 0x0D (Out,  1 B) — PID Device Gain
  *   Report 0x0E (IN,   1 B) — PID State
- *   Report 0x0F (Feat, 4 B) — PID Block Load   (GET_REPORT, device→host)
- *   Report 0x10 (Feat, 4 B) — PID Pool Report  (GET_REPORT, device→host)
+ *   Report 0x0F (Feat, 4 B) — PID Block Load  (GET_REPORT, device→host)
+ *   Report 0x10 (Feat, 4 B) — PID Pool Report (GET_REPORT, device→host)
  *
- * Application Collection 2: Physical Interface Device  (22 bytes)
- *   Report 0x11 (Feat, 1 B) — placeholder only; creates HID\UP:000F hardware ID
- *                              so that Windows and games recognise this as FFB.
- *
- * Application Collection 3: Vendor 0xFF00  (53 bytes, unchanged)
- *   Report 0x02 (IN, 48 B) — Telemetry
+ * Application Collection 3: Vendor 0xFF00  (53 bytes)
+ *   Report 0x02 (IN, 52 B) — Telemetry
  *   Report 0x03 (Feat,8 B) — Command (host→device)
  *   Report 0x04 (IN,  6 B) — Config Response
  *
  * Total descriptor size must equal HID_REPORT_DESC_SIZE in usbd_hid.h.
  * ─────────────────────────────────────────────────────────────────────────── */
-/* NOTE: HID_REPORT_DESC_SIZE must equal the number of initialiser bytes below.
- * Verified count: 569 bytes (494 Joystick+PID + 22 PID-placeholder + 53 Vendor).
- * Breakdown of additions vs 492:
- *   +6  effect type selector (3 new usages: ET_Sine, ET_Square, ET_Triangle)
- *   +71 Report 0x06 Set Periodic (2 header + 14+13+14+15+13 fields)
- * ─────────────────────────────────────────────────────────────────────────── */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * Application Collection 1: Generic Desktop / Joystick + PID  (417 bytes)
+     * Application Collection 1: Generic Desktop / Joystick  (23 bytes)
      * Windows hardware ID: HID\VID_xxxx&UP:0001&U:0004
-     * Contains ALL PID reports so DirectInput finds FFB capability here.
      * ═══════════════════════════════════════════════════════════════════════ */
     0x05, 0x01,        /* Usage Page (Generic Desktop)                        */
     0x09, 0x04,        /* Usage (Joystick)                                    */
@@ -70,8 +55,16 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x95, 0x01,      /* Report Count (1)                                    */
       0x81, 0x02,      /* Input (Variable, Absolute)                          */
 
-      /* Switch to PID Usage Page for all following reports in this collection */
-      0x05, 0x0F,      /* Usage Page (Physical Interface Device)              */
+    0xC0,              /* End Collection (Joystick Application)               */
+
+    /* ═══════════════════════════════════════════════════════════════════════
+     * Application Collection 2: Physical Interface Device  (478 bytes)
+     * Windows hardware ID: HID\VID_xxxx&UP:000F&U:0001
+     * DirectInput opens THIS collection to find FFB reports.
+     * ═══════════════════════════════════════════════════════════════════════ */
+    0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
+    0x09, 0x01,        /* Usage (Physical Interface Device)                   */
+    0xA1, 0x01,        /* Collection (Application)                            */
 
       /* ── Report 0x05: Set Effect (Output, 10 bytes payload) ── */
       0x85, FFB_REPORT_SET_EFFECT,
@@ -116,7 +109,6 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x91, 0x02,
 
       /* ── Report 0x06: Set Periodic (Output, 9 bytes payload) ── */
-      /* Used for Sine (ET=2), Square (ET=3), Triangle (ET=4) effects. */
       0x85, FFB_REPORT_SET_PERIODIC,
       /* Effect Block Index */
       0x09, 0x22,
@@ -155,7 +147,6 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x91, 0x02,
 
       /* ── Report 0x07: Set Condition (Output, 12 bytes payload) ── */
-      /* Used for Spring (ET=5) and Damper (ET=6) effects.            */
       0x85, FFB_REPORT_SET_CONDITION,
       /* Effect Block Index */
       0x09, 0x22,
@@ -342,26 +333,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0x95, 0x01,
       0xB1, 0x02,
 
-    0xC0,              /* End Collection (Joystick + PID Application)         */
-
-    /* ═══════════════════════════════════════════════════════════════════════
-     * Application Collection 2: Physical Interface Device placeholder (22 bytes)
-     * Windows hardware ID: HID\VID_xxxx&UP:000F&U:0001
-     * This minimal collection exists ONLY to create the UP:000F hardware ID.
-     * DirectInput and games use this ID to detect FFB capability.
-     * The actual PID reports are in Collection 1 where DirectInput reads them.
-     * ═══════════════════════════════════════════════════════════════════════ */
-    0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
-    0x09, 0x01,        /* Usage (Physical Interface Device)                   */
-    0xA1, 0x01,        /* Collection (Application)                            */
-      0x85, 0x11,      /* Report ID 0x11 (unique placeholder, never used)     */
-      0x09, 0x7C,      /* Usage (Device Gain)                                 */
-      0x15, 0x00,      /* Logical Minimum (0)                                 */
-      0x26, 0xFF, 0x00,/* Logical Maximum (255)                               */
-      0x75, 0x08,      /* Report Size (8)                                     */
-      0x95, 0x01,      /* Report Count (1)                                    */
-      0xB1, 0x02,      /* Feature (Variable)                                  */
-    0xC0,              /* End Collection (PID placeholder)                    */
+    0xC0,              /* End Collection (Physical Interface Device)          */
 
     /* ═══════════════════════════════════════════════════════════════════════
      * Application Collection 3: Vendor 0xFF00 — unchanged  (53 bytes)
@@ -371,7 +343,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
     0x09, 0x01,        /* Usage (Vendor 1)                                    */
     0xA1, 0x01,        /* Collection (Application)                            */
 
-      /* Report 0x02: Telemetry (IN, 48 bytes) */
+      /* Report 0x02: Telemetry (IN, 52 bytes) */
       0x85, HID_REPORT_ID_TELEMETRY,
       0x09, 0x02,
       0x15, 0x00,
