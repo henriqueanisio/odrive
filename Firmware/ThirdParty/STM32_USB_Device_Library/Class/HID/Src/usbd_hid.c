@@ -157,23 +157,27 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                 static uint8_t pid_resp[8];
                 uint8_t report_id = (uint8_t)(req->wValue & 0xFFU);
                 uint8_t resp_len  = 0U;
-                if (report_id == FFB_REPORT_PID_BLOCK_LOAD) {
-                    resp_len = ffb_get_block_load_report(pid_resp, sizeof(pid_resp));
-                } else if (report_id == FFB_REPORT_PID_POOL) {
-                    resp_len = ffb_get_pool_report(pid_resp, sizeof(pid_resp));
-                } else if (report_id == FFB_REPORT_CREATE_NEW_EFFECT) {
-                    /* Return supported effect types (array selector 0 = idle) */
-                    pid_resp[0] = FFB_REPORT_CREATE_NEW_EFFECT;
-                    pid_resp[1] = 0x00U; /* effect_type = none pending */
-                    pid_resp[2] = 0x00U; /* byte_count low  */
-                    pid_resp[3] = 0x00U; /* byte_count high + padding */
-                    resp_len    = 4U;
+
+                if (report_id == 0x11) { // PID POOL
+                    pid_resp[0] = 0x11;
+                    pid_resp[1] = 0x01; // max effects
+                    pid_resp[2] = 0x01; // memory (low)
+                    pid_resp[3] = 0x00; // memory (high)
+                    resp_len = 4;
                 }
+                else if (report_id == 0x12) { // CREATE NEW EFFECT
+                    pid_resp[0] = 0x12;
+                    pid_resp[1] = 0x01; // effect id
+                    pid_resp[2] = 0x00;
+                    pid_resp[3] = 0x00;
+                    resp_len = 4;
+                }
+
                 if (resp_len > 0U) {
                     USBD_CtlSendData(pdev, pid_resp, MIN(resp_len, req->wLength));
                 } else {
                     USBD_CtlError(pdev, req);
-                    ret = USBD_FAIL;
+                    return USBD_FAIL;
                 }
                 break;
             }
