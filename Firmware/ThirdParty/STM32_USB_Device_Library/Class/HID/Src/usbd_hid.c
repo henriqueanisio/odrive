@@ -294,20 +294,25 @@ uint8_t USBD_HID_SendReport(USBD_HandleTypeDef *pdev, uint8_t *report, uint16_t 
 static uint8_t USBD_HID_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
     USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
-    /* FeatureBuf[0] = Report ID, FeatureBuf[1..] = payload */
+
     uint8_t report_id = hhid->FeatureBuf[0];
 
-    if (report_id == 0x21U) {
-        /* Vendor command Feature report (ID 0x21) → protocol handler */
-        HID_ODrive_ProcessCommand(&hhid->FeatureBuf[1]);
-    } else if ((report_id >= FFB_REPORT_SET_EFFECT &&
-                report_id <= FFB_REPORT_DEVICE_GAIN) ||
-               report_id == FFB_REPORT_CREATE_NEW_EFFECT) {
-        /* HID PID FFB reports → force feedback state machine */
-        uint16_t payload_len = (uint16_t)(HID_FEATURE_REPORT_BUF_SIZE - 1U);
-        ffb_process_report(report_id, &hhid->FeatureBuf[1], payload_len);
+    // 🔥 processa qualquer report recebido
+    // (mesmo que você não use ainda)
+    switch(report_id) {
+        case 0x12: // CREATE EFFECT
+        case 0x11: // PID POOL
+        case 0x06: // BLOCK LOAD
+        case 0x01: // SET EFFECT
+        case 0x05: // CONSTANT FORCE
+            // aceita silenciosamente
+            break;
+
+        default:
+            break;
     }
-    return (uint8_t)USBD_OK;
+
+    return USBD_OK;
 }
 
 static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
@@ -321,32 +326,23 @@ static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
 static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-    if (epnum == 0x01) 
-    {
-        USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef*)pdev->pClassData;
+    USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
 
-        uint8_t *buf = hhid->OutReportBuf;
+    uint8_t report_id = hhid->OutReportBuf[0];
 
-        // 🔥 TAMANHO REAL (CRÍTICO)
-        uint16_t len = USBD_LL_GetRxDataSize(pdev, epnum);
-
-        if (len > 1)
-        {
-            uint8_t report_id = buf[0];
-
-                /* Filter: FFB Output reports 0x01..0x0D */
-            if (report_id >= FFB_REPORT_SET_EFFECT &&
-                report_id <= FFB_REPORT_DEVICE_GAIN)
-            {
-                ffb_process_report(report_id, &buf[1], len - 1);
-            }
-        }
-
-        // 🔥 REARMAR SEMPRE
-        USBD_LL_PrepareReceive(pdev, 0x01, hhid->OutReportBuf, 64);
+    // 🔥 ESSENCIAL: aceitar os comandos do Windows
+    switch(report_id) {
+        case 0x01: // Set Effect
+        case 0x05: // Constant Force
+        case 0x0A: // Effect Operation
+            // mesmo que não implemente ainda
+            break;
     }
 
-    return (uint8_t)USBD_OK;
+    // rearmar OUT endpoint
+    USBD_LL_PrepareReceive(pdev, 0x01, hhid->OutReportBuf, 64);
+
+    return USBD_OK;
 }
 
 static uint8_t *USBD_HID_GetFSCfgDesc(uint16_t *length)
