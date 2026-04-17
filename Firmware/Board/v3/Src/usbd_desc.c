@@ -94,7 +94,7 @@
 #define USBD_VID     0x1209
 #define USBD_LANGID_STRING     1033
 #define USBD_MANUFACTURER_STRING     "ODrive Robotics"
-#define USBD_PID_FS     0x0D53        
+#define USBD_PID_FS     0x0D32        
 #define USBD_PRODUCT_XSTR(s) USBD_PRODUCT_STR(s)
 #define USBD_PRODUCT_STR(s) #s
 #define USBD_PRODUCT_STRING_FS Direct Drive FFB Wheel
@@ -242,7 +242,7 @@ __ALIGN_BEGIN uint8_t USBD_FS_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END =
   HIBYTE(USBD_VID),           /*idVendor*/
   LOBYTE(USBD_PID_FS),        /*idProduct*/
   HIBYTE(USBD_PID_FS),        /*idProduct*/
-  0x04,                       /*bcdDevice LSB: rel. 3.04 — PID back in Joystick TLC (correct)  */
+  0x05,                       /*bcdDevice LSB: rel. 3.05 — proper PID logical collection wrappers */
   0x03,                       /*bcdDevice MSB                                    */
   USBD_IDX_MFC_STR,           /*Index of manufacturer  string*/
   USBD_IDX_PRODUCT_STR,       /*Index of product string*/
