@@ -5,28 +5,30 @@
 
 /* ── Combined HID Report Descriptor ──────────────────────────────────────────
  *
- * ONE outer Joystick Application containing TWO nested Applications.
- * This is the OpenFFBoard-proven structure — Windows parser requires nested
- * collections, not three separate top-level Application Collections.
+ * ONE outer Joystick Application — OpenFFBoard-proven structure.
+ * All FFB/PID reports are DIRECTLY in the outer Joystick Application
+ * (no separate PID Application Collection wrapper).
+ * Windows sees PID Output reports inside the Joystick collection and
+ * generates both HID_DEVICE_SYSTEM_GAME (hidgame.sys) AND
+ * HID_DEVICE_SYSTEM_PID (hidpid.sys) for the SAME Col01 node
+ * → joy.cpl shows the device with the Force Feedback tab.
  *
  *   Outer — Generic Desktop / Joystick  (UP:0001 U:0004)
- *     Generates HID_DEVICE_SYSTEM_GAME → hidgame.sys → joy.cpl game tab
  *
- *     Physical sub-collection (44 bytes):
+ *     Physical sub-collection:
  *       Report 0x01 IN  (3 B)  8 buttons + X axis
  *
- *     Nested PID Application  (UP:000F U:0001)  (1027 bytes):
- *       Generates HID_DEVICE_SYSTEM_PID → hidpid.sys → joy.cpl FF tab ← KEY
+ *     FFB / PID reports (directly in outer App):
  *       Report 0x02 IN  (1 B)  PID State
  *       Reports 0x01-0x0D OUT  FFB effect/control
  *       Reports 0x11-0x13 FEATURE  Create/Block/Pool
  *
- *     Nested Vendor Application  (UP:FF00 U:0001)  (53 bytes):
+ *     Nested Vendor Application  (UP:FF00 U:0001):
  *       Report 0x20 IN  (52 B) Telemetry
  *       Report 0x22 IN  ( 6 B) Config Response
  *       Report 0x21 FEATURE (8 B) Command
  *
- * Total = 44 + 1027 + 53 = 1124 bytes = HID_REPORT_DESC_SIZE.
+ * Total = 44 + 1020 + 53 = 1117 bytes = HID_REPORT_DESC_SIZE.
  * ─────────────────────────────────────────────────────────────────────────── */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
@@ -57,14 +59,11 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
       0xC0,            /* End Collection (Physical)                           */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * Nested PID Application  (UP:000F U:0001)  — 1027 bytes
-     * Nested inside the outer Joystick Application (OpenFFBoard approach).
-     * Windows sees UP:000F → generates HID_DEVICE_SYSTEM_PID → hidpid.sys
-     * and shows the Force Feedback tab in joy.cpl.
+     * FFB / PID reports — directly in the outer Joystick Application
+     * (OpenFFBoard approach: no separate PID Application Collection).
+     * Windows sees PID Output reports → generates HID_DEVICE_SYSTEM_PID
+     * for the same Col01 Joystick node → hidpid.sys → joy.cpl FF tab.
      * ═══════════════════════════════════════════════════════════════════════ */
-    0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
-    0x09, 0x01,        /* Usage (Physical Interface Device)                   */
-    0xA1, 0x01,        /* Collection (Application) — nested inside Joystick   */
 
       /* ── PID State Report 0x02 INPUT (STATEREP, 37 bytes) ── */
       0x05, 0x0F,      /* Usage Page (Physical Interface Device)              */
@@ -559,8 +558,6 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0x95, 0x01,
         0xB1, 0x03,
       0xC0,
-
-    0xC0,              /* End Collection (Physical Interface Device)          */
 
     /* ═══════════════════════════════════════════════════════════════════════
      * Nested Vendor Application  (UP:FF00 U:0001)  — 53 bytes
