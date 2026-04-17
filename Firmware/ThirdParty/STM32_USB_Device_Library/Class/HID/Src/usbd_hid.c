@@ -189,6 +189,20 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                     pid_resp[3] = 0xFF;
                     pid_resp[4] = 0x00;
                     resp_len = 5;
+                } else if (report_id == 0x20) { // Effect Block Index
+                    pid_resp[0] = 0x20;
+                    pid_resp[1] = 0x01; // index
+                    resp_len = 2;
+                }
+                else if (report_id == 0x21) { // Effect Block Free
+                    pid_resp[0] = 0x21;
+                    pid_resp[1] = 0x01;
+                    resp_len = 2;
+                }
+                else if (report_id == 0x0D) { // Device Gain
+                    pid_resp[0] = 0x0D;
+                    pid_resp[1] = 0xFF;
+                    resp_len = 2;
                 }
 
                 if (resp_len > 0U) {
