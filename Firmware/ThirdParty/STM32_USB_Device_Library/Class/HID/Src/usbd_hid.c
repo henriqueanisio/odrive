@@ -155,12 +155,21 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                 break;
             case HID_REQ_GET_REPORT: {
                 static uint8_t pid_resp[8];
-                uint8_t report_id = (uint8_t)(req->wValue & 0xFFU);
-                uint8_t resp_len  = 0U;
+
+                uint8_t report_id   = (uint8_t)(req->wValue & 0xFFU);
+                uint8_t report_type = (uint8_t)(req->wValue >> 8);
+
+                uint8_t resp_len = 0U;
+
+                // ⚠️ Só responde FEATURE reports
+                if (report_type != 0x03) {
+                    USBD_CtlError(pdev, req);
+                    return USBD_FAIL;
+                }
 
                 if (report_id == 0x11) { // PID POOL
                     pid_resp[0] = 0x11;
-                    pid_resp[1] = 0x01;
+                    pid_resp[1] = 0xFF;
                     pid_resp[2] = 0x00;
                     pid_resp[3] = 0x01;
                     pid_resp[4] = 0x01;
