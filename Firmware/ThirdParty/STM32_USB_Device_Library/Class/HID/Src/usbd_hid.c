@@ -154,64 +154,78 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                                 MIN(req->wLength, HID_FEATURE_REPORT_BUF_SIZE));
                 break;
             case HID_REQ_GET_REPORT: {
-                static uint8_t pid_resp[8];
+                static uint8_t pid_resp[64];
 
                 uint8_t report_id   = (uint8_t)(req->wValue & 0xFFU);
                 uint8_t report_type = (uint8_t)(req->wValue >> 8);
 
+                uint16_t wLength = req->wLength;
                 uint8_t resp_len = 0U;
 
-                // ⚠️ Só responde FEATURE reports
+                // limpa buffer inteiro (IMPORTANTE)
+                memset(pid_resp, 0, sizeof(pid_resp));
+
+                // só Feature report
                 if (report_type != 0x03) {
                     USBD_CtlError(pdev, req);
                     return USBD_FAIL;
                 }
 
-                if (report_id == 0x11) { // PID POOL
-                    pid_resp[0] = 0x11;
-                    pid_resp[1] = 0xFF;
-                    pid_resp[2] = 0x00;
-                    pid_resp[3] = 0x01;
-                    pid_resp[4] = 0x01;
-                    resp_len = 5;
-                }
-                else if (report_id == 0x12) { // CREATE EFFECT
-                    pid_resp[0] = 0x12;
-                    pid_resp[1] = 0x01;
-                    pid_resp[2] = 0x00;
-                    pid_resp[3] = 0x00;
-                    resp_len = 4;
-                }
-                else if (report_id == 0x06) { // BLOCK LOAD
-                    pid_resp[0] = 0x06;
-                    pid_resp[1] = 0x01;
-                    pid_resp[2] = 0x01;
-                    pid_resp[3] = 0xFF;
-                    pid_resp[4] = 0x00;
-                    resp_len = 5;
-                } else if (report_id == 0x20) { // Effect Block Index
-                    pid_resp[0] = 0x20;
-                    pid_resp[1] = 0x01; // index
-                    resp_len = 2;
-                }
-                else if (report_id == 0x21) { // Effect Block Free
-                    pid_resp[0] = 0x21;
-                    pid_resp[1] = 0x01;
-                    resp_len = 2;
-                }
-                else if (report_id == 0x0D) { // Device Gain
-                    pid_resp[0] = 0x0D;
-                    pid_resp[1] = 0xFF;
-                    resp_len = 2;
+                switch (report_id)
+                {
+                    case 0x11: // PID POOL
+                        pid_resp[0] = 0x11;
+                        pid_resp[1] = 0xFF; // RAM low
+                        pid_resp[2] = 0x00; // RAM high
+                        pid_resp[3] = 0x01; // max effects
+                        pid_resp[4] = 0x01; // memory management
+                        resp_len = 5;
+                        break;
+
+                    case 0x12: // CREATE EFFECT
+                        pid_resp[0] = 0x12;
+                        pid_resp[1] = 0x01; // effect id
+                        pid_resp[2] = 0x00;
+                        pid_resp[3] = 0x00;
+                        resp_len = 4;
+                        break;
+
+                    case 0x06: // BLOCK LOAD
+                        pid_resp[0] = 0x06;
+                        pid_resp[1] = 0x01; // effect id
+                        pid_resp[2] = 0x01; // status OK
+                        pid_resp[3] = 0xFF; // RAM low
+                        pid_resp[4] = 0x00; // RAM high
+                        resp_len = 5;
+                        break;
+
+                    case 0x0D: // DEVICE GAIN
+                        pid_resp[0] = 0x0D;
+                        pid_resp[1] = 0xFF;
+                        resp_len = 2;
+                        break;
+
+                    default:
+                        // 🔥 MUITO IMPORTANTE:
+                        // não dar erro para reports desconhecidos
+                        pid_resp[0] = report_id;
+                        resp_len = 1;
+                        break;
                 }
 
-                if (resp_len > 0U) {
-                    memset(pid_resp + resp_len, 0, req->wLength - resp_len);
-                    USBD_CtlSendData(pdev, pid_resp, req->wLength);
-                } else {
-                    USBD_CtlError(pdev, req);
-                    return USBD_FAIL;
+                // garante que não passa do buffer
+                if (wLength > sizeof(pid_resp)) {
+                    wLength = sizeof(pid_resp);
                 }
+
+                // completa até wLength
+                if (resp_len < wLength) {
+                    memset(pid_resp + resp_len, 0, wLength - resp_len);
+                }
+
+                // envia exatamente wLength
+                USBD_CtlSendData(pdev, pid_resp, wLength);
+
                 break;
             }
             default:
