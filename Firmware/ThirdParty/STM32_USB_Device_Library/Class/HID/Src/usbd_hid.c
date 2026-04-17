@@ -206,8 +206,6 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
                         break;
 
                     default:
-                        // 🔥 MUITO IMPORTANTE:
-                        // não dar erro para reports desconhecidos
                         pid_resp[0] = report_id;
                         resp_len = 1;
                         break;
