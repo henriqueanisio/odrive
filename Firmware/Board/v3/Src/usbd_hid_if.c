@@ -5,30 +5,25 @@
 
 /* ── Combined HID Report Descriptor ──────────────────────────────────────────
  *
- * THREE separate top-level Application Collections (TLCs) — one HID interface.
+ * TWO top-level Application Collections (TLCs) — one HID interface.
  *
- * Confirmed by hardware ID analysis: HID_DEVICE_SYSTEM_PID is ONLY generated
- * when a top-level Application Collection with Usage Page 0x0F exists.
- * The OpenFFBoard single-TLC approach does NOT generate HID_DEVICE_SYSTEM_PID
- * and therefore does NOT produce the joy.cpl FF tab.
+ * PID FFB reports are integrated inside the Joystick TLC (Col01).
+ * DirectInput opens Col01 and searches for FFB Output reports within that
+ * same TLC — if they were in a separate PID TLC, DirectInput would not find
+ * them and games would never send FFB. This is the fix.
  *
- *   TLC1 — Generic Desktop / Joystick  (UP:0001 U:0004)  44 bytes
- *       Generates HID_DEVICE_SYSTEM_GAME → hidgame.sys → joy.cpl game tab
+ *   TLC1 — Generic Desktop / Joystick  (UP:0001 U:0004)  1066 bytes
  *       Report 0x40 IN  (3 B)  8 buttons + X axis
- *       (0x40 avoids global Report ID conflict with PID's 0x01)
- *
- *   TLC2 — Physical Interface Device   (UP:000F U:0001)  1027 bytes
- *       Generates HID_DEVICE_SYSTEM_PID → hidpid.sys → joy.cpl FF tab ← KEY
  *       Report 0x02 IN  (1 B)  PID State
- *       Reports 0x01-0x0D OUT  FFB effect/control
+ *       Reports 0x01-0x0D OUT  FFB effect/control  ← DirectInput finds these
  *       Reports 0x11-0x13 FEATURE  Create/Block/Pool
  *
- *   TLC3 — Vendor 0xFF00               (UP:FF00 U:0001)  53 bytes
+ *   TLC2 — Vendor 0xFF00               (UP:FF00 U:0001)  53 bytes
  *       Report 0x20 IN  (52 B) Telemetry
  *       Report 0x22 IN  ( 6 B) Config Response
  *       Report 0x21 FEATURE (8 B) Command
  *
- * Total = 44 + 1027 + 53 = 1124 bytes = HID_REPORT_DESC_SIZE.
+ * Total = 1066 + 53 = 1119 bytes = HID_REPORT_DESC_SIZE.
  * ─────────────────────────────────────────────────────────────────────────── */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
@@ -58,16 +53,12 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0x95, 0x01,    /* Report Count (1)                                    */
         0x81, 0x02,    /* Input (Variable, Absolute)                          */
       0xC0,            /* End Collection (Physical)                           */
-    0xC0,              /* End Collection (TLC1 Joystick)                      */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * TLC2 — Physical Interface Device  (UP:000F U:0001)  1027 bytes
-     * Separate top-level Application → Windows generates HID_DEVICE_SYSTEM_PID
-     * → hidpid.sys loads → joy.cpl FF tab appears.
+     * PID Force Feedback — integrated into Joystick TLC (Col01)
+     * DirectInput finds FFB Output reports within the same TLC as the joystick.
      * ═══════════════════════════════════════════════════════════════════════ */
     0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
-    0x09, 0x01,        /* Usage (Physical Interface Device)                   */
-    0xA1, 0x01,        /* Collection (Application)                            */
 
       /* ── PID State Report 0x02 INPUT (STATEREP, 37 bytes) ── */
       0x05, 0x0F,      /* Usage Page (Physical Interface Device)              */
@@ -563,10 +554,10 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0xB1, 0x03,
       0xC0,
 
-    0xC0,              /* End Collection (TLC2 PID)                           */
+    0xC0,              /* End Collection (TLC1 Joystick + PID)               */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * TLC3 — Vendor 0xFF00  (UP:FF00 U:0001)  53 bytes
+     * TLC2 — Vendor 0xFF00  (UP:FF00 U:0001)  53 bytes
      * ═══════════════════════════════════════════════════════════════════════ */
     0x06, 0x00, 0xFF,  /* Usage Page (Vendor Defined 0xFF00)                  */
     0x09, 0x01,        /* Usage (Vendor 1)                                    */
