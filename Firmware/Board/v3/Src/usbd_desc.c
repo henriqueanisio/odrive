@@ -242,7 +242,7 @@ __ALIGN_BEGIN uint8_t USBD_FS_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END =
   HIBYTE(USBD_VID),           /*idVendor*/
   LOBYTE(USBD_PID_FS),        /*idProduct*/
   HIBYTE(USBD_PID_FS),        /*idProduct*/
-  0x11,                       /*bcdDevice LSB: rel. 3.11 — SET_EFFECT adds Effect Type 0x25 */
+  0x12,                       /*bcdDevice LSB: rel. 3.12 — hardcode wDescriptorLength=312 */
   0x03,                       /*bcdDevice MSB                                    */
   USBD_IDX_MFC_STR,           /*Index of manufacturer  string*/
   USBD_IDX_PRODUCT_STR,       /*Index of product string*/
