@@ -216,7 +216,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
   // SetEnvelopeReport
   0x09, 0x5A,           //Usage (Set Envelope Report)
   0xA1, 0x02,           //Collection Datalink (Logical)
-	0x85, 0x02,           //Report ID 2
+	0x85, 0x0F,           //Report ID 2
 	0x09, 0x22,           //  Usage (Effect Block Index)
 	0x15, 0x01,           //   Logical Minimum (1)
 	0x25, 0x28,           //   Logical Maximum (40)
@@ -563,7 +563,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
   //CreateNewEffectReport
   0x09, 0xAB, // USAGE (Create New Effect Report)
   0xA1, 0x02, // COLLECTION (Logical)
-	0x85, 0x07, // REPORT_ID (07) -- 7 avoids conflict with Output 0x05/0x06
+	0x85, 0x30, // REPORT_ID (07) -- 7 avoids conflict with Output 0x05/0x06
 	0x09, 0x25, // USAGE (Effect Type)
 	0xA1, 0x02, // COLLECTION (Logical)
 	  0x09, 0x26, // USAGE (26)
@@ -603,7 +603,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
   0x05, 0x0F, // USAGE_PAGE (Physical Interface)
   0x09, 0x89, // USAGE (PID Block Load Report)
   0xA1, 0x02, // COLLECTION (Logical)
-	0x85, 0x08, // REPORT_ID (08)
+	0x85, 0x31, // REPORT_ID (08)
 	0x09, 0x22, // USAGE (Effect Block Index)
 	0x25, 0x28, // LOGICAL_MAXIMUM (28)
 	0x15, 0x01, // LOGICAL_MINIMUM (01)
