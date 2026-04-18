@@ -165,7 +165,23 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[] __ALIGN_END = {
 0xC0,
 
 0xC0,
+
+/* TLC3: Vendor telemetry (UP:FF00) */
+0x06, 0x00, 0xFF,       /* Usage Page (Vendor 0xFF00) */
+0x09, 0x01,             /* Usage (Vendor Application) */
+0xA1, 0x01,             /* Collection (Application) */
+  0x85, 0x20,           /* Report ID 0x20 — Telemetry Input (52 bytes) */
+  0x09, 0x02,
+  0x15, 0x00,
+  0x26, 0xFF, 0x00,
+  0x75, 0x08,
+  0x95, 0x34,           /* Report Count = 52 */
+  0x81, 0x02,           /* Input (Data,Var,Abs) */
+0xC0,
 };
+
+_Static_assert(sizeof(HID_ReportDesc) == HID_REPORT_DESC_SIZE,
+               "HID_REPORT_DESC_SIZE does not match actual descriptor — update usbd_hid.h");
 
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
 uint8_t HID_Joystick_Send(int16_t value)
@@ -176,8 +192,12 @@ uint8_t HID_Joystick_Send(int16_t value)
 
 uint8_t HID_ODrive_SendTelemetry(const HID_TelemetryPayload_t *payload)
 {
-    (void)payload;
-    return USBD_OK; // desabilitado
+    uint8_t report[1 + HID_TELEMETRY_PAYLOAD_SIZE];
+    report[0] = HID_REPORT_ID_TELEMETRY;
+    memcpy(&report[1], payload, HID_TELEMETRY_PAYLOAD_SIZE);
+    bool ok = hid_queue_push(report, sizeof(report));
+    hid_queue_process();
+    return ok ? (uint8_t)USBD_OK : (uint8_t)USBD_BUSY;
 }
 
 /* ── HID_ODrive_SendConfigResponse ──────────────────────────────────────── */
