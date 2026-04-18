@@ -429,7 +429,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 	0x46, 0xFF, 0x00,     //   Physical Maximum (255)
 	0x75, 0x08,           //   Report Size (8)
 	0x95, 0x0C,           //   Report Count (12)
-	0x92, 0x02, 0x01,     //   Output (Variable, Buffered)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
   0xC0,                 //End Collection Datalink (Logical) (OK)
 
   // DownloadForceSample
