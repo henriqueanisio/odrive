@@ -3,181 +3,545 @@
 #include <string.h>
 #include "hid_queue.h"
 
-/* ── Combined HID Report Descriptor ──────────────────────────────────────────
- *
- * TWO top-level Application Collections (TLCs) — one HID interface.
- *
- * TLC1 is GENERIC_DESKTOP/JOYSTICK (UP:0001/U:0004).  DirectInput requires
- * the FFB Output reports to appear inside a JOYSTICK Application Collection —
- * not inside a PID (UP:000F) Application Collection — to set DIDC_FORCEFEEDBACK.
- * This matches the stm32_ffb_wheel reference implementation that is confirmed
- * working.
- *
- *   TLC1 — Generic Desktop / Joystick  (UP:0001 U:0004)  1244 bytes
- *       Report 0x40 IN  (3 B)  8 buttons + X (steering) axis
- *       Report 0x02 IN  (1 B)  PID State
- *       Reports 0x01-0x0D OUT  FFB effect/control
- *       Report  0x07 FEATURE   Create New Effect (SET_REPORT)
- *       Report  0x08 FEATURE   PID Block Load    (GET_REPORT)
- *       Report  0x09 FEATURE   PID Pool          (GET_REPORT)
- *
- *   TLC2 — Vendor 0xFF00               (UP:FF00 U:0001)   53 bytes
- *       Report 0x20 IN  (52 B) Telemetry
- *       Report 0x22 IN  ( 6 B) Config Response
- *       Report 0x21 FEATURE (8 B) Command
- *
- * Total = 1244 + 53 = 1297 bytes = HID_REPORT_DESC_SIZE.
- * ─────────────────────────────────────────────────────────────────────────── */
-const uint8_t HID_ReportDesc[] = {
+__ALIGN_BEGIN static uint8_t HID_ReportDesc[] __ALIGN_END = {
+/* USER CODE BEGIN 0 */
+    HID_USAGE_PAGE (GENERIC_DESKTOP),
+    HID_LOGICAL_MINIMUM1 (0),
+    HID_USAGE (JOYSTICK),
+    HID_COLLECTION (APPLICATION),
+    
+      //Joystick Input report
+      HID_REPORT_ID (1),
+      HID_COLLECTION (PHYSICAL),
+        HID_USAGE_PAGE (SIMULATION),
+        HID_USAGE (STEERING),
+        HID_USAGE (ACCELERATOR),
+        HID_USAGE (BRAKE),
+        HID_LOGICAL_MINIMUM2 (0x8000),
+        HID_LOGICAL_MAXIMUM2 (0x7fff),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (3),
+        HID_INPUT(DATA, VARIABLE, ABSOLUTE),  
 
-  // ===== JOYSTICK TLC =====
-  0x05, 0x01,        // Usage Page (Generic Desktop)
-  0x09, 0x04,        // Usage (Joystick)
-  0xA1, 0x01,        // Collection (Application)
+        HID_USAGE_PAGE (GENERIC_DESKTOP),
+        HID_USAGE_PAGE (BUTTON),
+        HID_USAGE_MINIMUM1(1),
+        HID_USAGE_MAXIMUM1(32),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (1),
+        HID_REPORT_SIZE (1),
+        HID_REPORT_COUNT (32),
+        HID_INPUT (DATA, VARIABLE, ABSOLUTE),
 
-  // ===== INPUT (Joystick) =====
-  0x85, 0x01,        // Report ID 1
+      HID_END_COLLECTION (PHYSICAL),
 
-  // Buttons (8)
-  0x05, 0x09,
-  0x19, 0x01,
-  0x29, 0x08,
-  0x15, 0x00,
-  0x25, 0x01,
-  0x75, 0x01,
-  0x95, 0x08,
-  0x81, 0x02,
+      //PIDStateReport
+      HID_USAGE_PAGE (PHYSICAL_DEVICE),
+      HID_USAGE (PID_STATE_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (2),
+        HID_USAGE (DEVICE_PAUSED),
+        HID_USAGE (ACTUATORS_ENABLED),
+        HID_USAGE (ACTUATOR_POWER),
+        HID_USAGE (ACTUATOR_OVERRIDE_SWITCH),
+        HID_USAGE (SAFETY_SWITCH),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (1),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM1 (1),
+        HID_REPORT_SIZE (1),
+        HID_REPORT_COUNT (5),
+        HID_INPUT (DATA, VARIABLE, ABSOLUTE),
+        
+        HID_REPORT_COUNT (3),
+        HID_INPUT (CONSTANT, VARIABLE, ABSOLUTE),
 
-  // Padding
-  0x75, 0x08,
-  0x95, 0x01,
-  0x81, 0x03,
+        HID_USAGE (EFFECT_PLAYING),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (1),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM1 (1),
+        HID_REPORT_SIZE (1),
+        HID_REPORT_COUNT (1),
+        HID_INPUT (DATA, VARIABLE, ABSOLUTE),
+        
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (7),
+        HID_REPORT_COUNT (1),
+        HID_INPUT (DATA, VARIABLE, ABSOLUTE),
+      HID_END_COLLECTION (LOGICAL),
 
-  // Axis X (16 bits)
-  0x05, 0x01,
-  0x09, 0x30,
-  0x16, 0x00, 0x80,
-  0x26, 0xFF, 0x7F,
-  0x75, 0x10,
-  0x95, 0x01,
-  0x81, 0x02,
+      //Set Effect Report
+      HID_USAGE_PAGE (PHYSICAL_DEVICE),
+      HID_USAGE (SET_EFFECT_REPORT),
 
-  // ===== PID STATE (Input) =====
-  0x05, 0x0F,
-  0x09, 0x92,
-  0xA1, 0x02,
-    0x85, 0x02,
-    0x09, 0x9F,
-    0x09, 0xA0,
-    0x15, 0x00,
-    0x25, 0x01,
-    0x75, 0x01,
-    0x95, 0x02,
-    0x81, 0x02,
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID(1),
 
-    // padding
-    0x75, 0x06,
-    0x95, 0x01,
-    0x81, 0x03,
-  0xC0,
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
 
-  // ===== SET EFFECT =====
-  0x05, 0x0F,
-  0x09, 0x21,
-  0xA1, 0x02,
-    0x85, 0x03,
+        HID_USAGE (EFFECT_TYPE),
+        HID_COLLECTION (LOGICAL),
+          HID_USAGE (ET_CONSTANT_FORCE),
+          HID_USAGE (ET_RAMP),
+          HID_USAGE (ET_SQUARE),
+          HID_USAGE (ET_SINE),
+          HID_USAGE (ET_TRIANGLE),
+          HID_USAGE (ET_SAWTOOTH_UP),
+          HID_USAGE (ET_SAWTOOTH_DOWN),
+          HID_USAGE (ET_SPRING),
+          HID_USAGE (ET_DAMPER),
+          HID_USAGE (ET_INERTIA),
+          HID_USAGE (ET_FRICTION),
+          HID_LOGICAL_MINIMUM1 (1),
+          HID_LOGICAL_MAXIMUM1 (11),
+          HID_REPORT_SIZE (8),
+          HID_OUTPUT(DATA, ARRAY, ABSOLUTE),
+          
+        HID_END_COLLECTION (LOGICAL),
 
-    // Effect Block Index
-    0x09, 0x22,
-    0x15, 0x01,
-    0x25, 0x28,
-    0x75, 0x08,
-    0x95, 0x01,
-    0x91, 0x02,
+        HID_USAGE (DURATION),
+        HID_USAGE (TRIGGER_REPEAT_INTERVAL),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM2 (0xffff),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM2 (0xffff),
+        HID_UNIT (EN(LIN), SECOND(1)),
+        HID_UNIT_EXPONENT (-3), //milliseconds
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (2),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
 
-    // Effect Type
-    0x09, 0x25,
-    0xA1, 0x02,
-      0x09, 0x26, // Constant Force
-      0x09, 0x27, // Ramp
-      0x15, 0x01,
-      0x25, 0x02,
-      0x75, 0x08,
-      0x95, 0x01,
-      0x91, 0x00,
-    0xC0,
+        HID_UNIT_EXPONENT (-6), //microseconds
+        HID_USAGE (SAMPLE_PERIOD),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+        HID_UNIT_EXPONENT (0),
+        HID_UNIT (NONE),
 
-    // Duration
-    0x09, 0x50,
-    0x16, 0x00, 0x00,
-    0x26, 0xFF, 0x7F,
-    0x75, 0x10,
-    0x95, 0x01,
-    0x91, 0x02,
+        HID_USAGE (GAIN),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (255),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
 
-    // Gain
-    0x09, 0x52,
-    0x15, 0x00,
-    0x26, 0xFF, 0x00,
-    0x75, 0x08,
-    0x95, 0x01,
-    0x91, 0x02,
+        HID_USAGE (AXES_ENABLE),
+        HID_COLLECTION (LOGICAL),
+          HID_USAGE_PAGE(SIMULATION),
+          HID_USAGE(STEERING),
+          HID_LOGICAL_MINIMUM1 (0),
+          HID_LOGICAL_MAXIMUM1 (1),
+          HID_REPORT_SIZE (1),
+          HID_REPORT_COUNT (1),
+          HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+        HID_END_COLLECTION (LOGICAL),
 
-  0xC0,
 
-  // ===== CONSTANT FORCE =====
-  0x05, 0x0F,
-  0x09, 0x73,
-  0xA1, 0x02,
-    0x85, 0x04,
+        HID_REPORT_COUNT (7), // padding
+        HID_OUTPUT(CONSTANT, VARIABLE, ABSOLUTE),
 
-    // Effect Block Index
-    0x09, 0x22,
-    0x15, 0x01,
-    0x25, 0x28,
-    0x75, 0x08,
-    0x95, 0x01,
-    0x91, 0x02,
+      HID_END_COLLECTION (LOGICAL),
 
-    // Magnitude
-    0x09, 0x70,
-    0x16, 0xF0, 0xD8,
-    0x26, 0x10, 0x27,
-    0x75, 0x10,
-    0x95, 0x01,
-    0x91, 0x02,
+      // SetEnvelopeReport
+      HID_USAGE_PAGE (PHYSICAL_DEVICE),
+      HID_USAGE (SET_ENVELOPE_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (2),
 
-  0xC0,
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
 
-  // ===== DEVICE CONTROL =====
-  0x05, 0x0F,
-  0x09, 0x96,
-  0xA1, 0x02,
-    0x85, 0x05,
-    0x09, 0x97,
-    0x09, 0x98,
-    0x09, 0x9A,
-    0x15, 0x01,
-    0x25, 0x03,
-    0x75, 0x08,
-    0x95, 0x01,
-    0x91, 0x00,
-  0xC0,
+        HID_USAGE (ATTACK_LEVEL),
+        HID_USAGE (FADE_LEVEL),
+        HID_LOGICAL_MINIMUM2 (0x8000),
+        HID_LOGICAL_MAXIMUM2 (0x7fff),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (2),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
 
-  // ===== DEVICE GAIN =====
-  0x05, 0x0F,
-  0x09, 0x7D,
-  0xA1, 0x02,
-    0x85, 0x06,
-    0x09, 0x7E,
-    0x15, 0x00,
-    0x26, 0xFF, 0x00,
-    0x75, 0x08,
-    0x95, 0x01,
-    0x91, 0x02,
-  0xC0,
+        HID_USAGE (ATTACK_TIME),
+        HID_USAGE (FADE_TIME),
+        HID_UNIT (EN(LIN), SECOND(1)),
+        HID_UNIT_EXPONENT(-3), //milliseconds
+        HID_LOGICAL_MAXIMUM2 (0xffff),
+        HID_PHYSICAL_MAXIMUM2 (0xffff),
+        HID_REPORT_SIZE (16),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+        HID_PHYSICAL_MAXIMUM1 (0),
 
-  0xC0  // END JOYSTICK
+        HID_UNIT(NONE),     //   Unit (0)
+        HID_UNIT_EXPONENT(0),           //   Unit Exponent (0)
+
+      HID_END_COLLECTION (LOGICAL),
+
+      // SetConditionReport
+      HID_USAGE (SET_CONDITION_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (3),
+
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+    
+        HID_LOGICAL_MINIMUM2 (0x8000),
+        HID_LOGICAL_MAXIMUM2 (0x7fff),
+        HID_USAGE (CP_OFFSET),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_LOGICAL_MINIMUM2 (0x8000),
+        HID_LOGICAL_MAXIMUM2 (0x7fff),
+        HID_USAGE (POSITIVE_COEFFICIENT),
+        HID_USAGE (NEGATIVE_COEFFICIENT),
+        HID_REPORT_COUNT (2),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_LOGICAL_MINIMUM2 (0),
+        HID_LOGICAL_MAXIMUM2 (16384),
+        HID_PHYSICAL_MINIMUM2 (0),
+        HID_PHYSICAL_MAXIMUM2 (16384),
+        HID_USAGE (POSITIVE_SATURATION),
+        HID_USAGE (NEGATIVE_SATURATION),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (2),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (DEAD_BAND),
+        HID_PHYSICAL_MAXIMUM2 (16384),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+      
+      HID_END_COLLECTION (LOGICAL),
+    
+      
+      // SetPeriodicReport
+      HID_USAGE (SET_PERIODIC_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (4),
+
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (MAGNITUDE),
+        HID_LOGICAL_MINIMUM2 (0),
+        HID_LOGICAL_MAXIMUM2 (16384),
+        HID_PHYSICAL_MINIMUM2 (0),
+        HID_PHYSICAL_MAXIMUM2 (16384),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (OFFSET),
+        HID_LOGICAL_MINIMUM2 (-16384),
+        HID_LOGICAL_MAXIMUM2 (16384),
+        HID_PHYSICAL_MINIMUM2 (-16384),
+        HID_PHYSICAL_MAXIMUM2 (16384),
+        HID_REPORT_COUNT (1),
+        HID_REPORT_SIZE (16),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (PHASE),
+        HID_UNIT(EN(ROT), DEGREES(1)),
+        HID_UNIT_EXPONENT(-2),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM (4, 0xffff),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM (4, 0xffff),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (PERIOD),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM2 (0xffff),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM2 (0xffff),
+        HID_UNIT(EN(LIN), SECOND(1)),
+        HID_UNIT_EXPONENT(-3),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_UNIT(NONE),
+        HID_UNIT_EXPONENT(0),
+      HID_END_COLLECTION (LOGICAL),
+    
+      // SetConstantForceReport
+      HID_USAGE (SET_CONSTANT_FORCE_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (5),
+
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (MAGNITUDE),
+        HID_LOGICAL_MINIMUM2 (-16384),
+        HID_LOGICAL_MAXIMUM2 (16384),
+        HID_PHYSICAL_MINIMUM2 (-16384),
+        HID_PHYSICAL_MAXIMUM2 (16384),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+      HID_END_COLLECTION (LOGICAL),
+
+      // SetRampForceReport
+      HID_USAGE (SET_RAMP_FORCE_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (6),
+
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (RAMP_START),
+        HID_USAGE (RAMP_END),
+        HID_LOGICAL_MINIMUM2 (-16384),
+        HID_LOGICAL_MAXIMUM2 (16384),
+        HID_PHYSICAL_MINIMUM2 (-16384),
+        HID_PHYSICAL_MAXIMUM2 (16384),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (2),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+      HID_END_COLLECTION (LOGICAL),
+    
+      // EffectOperationReport
+      HID_USAGE (EFFECT_OPERATION_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (10),
+
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (EFFECT_OPERATION),
+        HID_COLLECTION (LOGICAL),
+          HID_USAGE (OP_EFFECT_START),
+          HID_USAGE (OP_EFFECT_START_SOLO),
+          HID_USAGE (OP_EFFECT_STOP),
+          HID_LOGICAL_MINIMUM1 (1),
+          HID_LOGICAL_MAXIMUM1 (3),
+          HID_REPORT_SIZE (8),
+          HID_REPORT_COUNT (1),
+          HID_OUTPUT(DATA),
+
+        HID_END_COLLECTION (LOGICAL),
+        HID_USAGE (LOOP_COUNT),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (255),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM1 (255),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+      HID_END_COLLECTION (LOGICAL),
+
+      // PIDBlockFreeReport
+      HID_USAGE (PID_BLOCK_FREE_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (11),
+
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_PHYSICAL_MINIMUM1 (1),
+        HID_PHYSICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+
+      HID_END_COLLECTION (LOGICAL),
+
+      //PIDDeviceControl
+      HID_USAGE (PID_DEVICE_CONTROL),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (12),
+
+        HID_USAGE (DC_ENABLE_ACTUATORS),
+        HID_USAGE (DC_DISABLE_ACTUATORS),
+        HID_USAGE (DC_STOP_ALL_EFFECTS),
+        HID_USAGE (DC_DEVICE_RESET),
+        HID_USAGE (DC_DEVICE_PAUSE),
+        HID_USAGE (DC_DEVICE_CONTINUE),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (6),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA),
+
+      HID_END_COLLECTION (LOGICAL),
+    
+      // DeviceGainReport
+      HID_USAGE (DEVICE_GAIN_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (13),
+
+        HID_USAGE (DEVICE_GAIN),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (255),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
+      HID_END_COLLECTION (LOGICAL),
+
+      // FEATURE REPORTS
+
+      // PIDCreateNewEffectReport
+      HID_USAGE (CREATE_NEW_EFFECT_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (7),
+
+        HID_USAGE (EFFECT_TYPE),
+        HID_COLLECTION (LOGICAL),
+          HID_USAGE (ET_CONSTANT_FORCE),
+          HID_USAGE (ET_RAMP),
+          HID_USAGE (ET_SQUARE),
+          HID_USAGE (ET_SINE),
+          HID_USAGE (ET_TRIANGLE),
+          HID_USAGE (ET_SAWTOOTH_UP),
+          HID_USAGE (ET_SAWTOOTH_DOWN),
+          HID_USAGE (ET_SPRING),
+          HID_USAGE (ET_DAMPER),
+          HID_USAGE (ET_INERTIA),
+          HID_USAGE (ET_FRICTION),
+          HID_LOGICAL_MINIMUM1 (1),
+          HID_LOGICAL_MAXIMUM1 (11),
+          HID_PHYSICAL_MINIMUM1 (1),
+          HID_PHYSICAL_MAXIMUM1 (11),
+          HID_REPORT_SIZE (8),
+          HID_REPORT_COUNT (1),
+          HID_FEATURE (DATA, ARRAY, ABSOLUTE),
+
+        HID_END_COLLECTION (LOGICAL),
+
+        HID_USAGE_PAGE (GENERIC_DESKTOP),
+        HID_USAGE (BYTE_COUNT),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (0xff),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_FEATURE (DATA, VARIABLE, ABSOLUTE),
+
+      HID_END_COLLECTION (LOGICAL),
+    
+      // PIDBlockLoadReport
+      HID_USAGE_PAGE (PHYSICAL_DEVICE),
+      HID_USAGE (PID_BLOCK_LOAD_REPORT),
+      HID_COLLECTION (LOGICAL),
+        HID_REPORT_ID (8),
+
+        HID_USAGE (EFFECT_BLOCK_INDEX),
+        HID_LOGICAL_MINIMUM1 (1),
+        HID_LOGICAL_MAXIMUM1 (40),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_FEATURE (DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (BLOCK_LOAD_STATUS),
+        HID_COLLECTION (LOGICAL),
+          HID_USAGE (BLOCK_LOAD_SUCCESS),
+          HID_USAGE (BLOCK_LOAD_FULL),
+          HID_USAGE (BLOCK_LOAD_ERROR),
+          HID_LOGICAL_MINIMUM1 (1),
+          HID_LOGICAL_MAXIMUM1 (3),
+          HID_REPORT_SIZE (8),
+          HID_REPORT_COUNT (1),
+          HID_FEATURE (DATA, ARRAY, ABSOLUTE),
+
+        HID_END_COLLECTION (LOGICAL),
+
+        HID_USAGE (RAM_POOL_AVAILABLE),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM2 (0xffff),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM2 (0xffff),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (1),
+        HID_FEATURE (DATA, VARIABLE, ABSOLUTE),
+      HID_END_COLLECTION (LOGICAL),
+
+      // PIDPoolFeatureReport
+      HID_USAGE (PID_POOL_REPORT),
+      HID_COLLECTION (LOGICAL),
+
+        HID_REPORT_ID (9),
+
+        HID_USAGE (RAM_POOL_SIZE),
+        HID_REPORT_SIZE (16),
+        HID_REPORT_COUNT (1),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM2 (0xffff),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM2 (0xffff),
+        HID_FEATURE (DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (SIMULTANEOUS_EFFECTS_MAX),
+        HID_LOGICAL_MAXIMUM1 (0xff),
+        HID_PHYSICAL_MAXIMUM1 (0xff),
+        HID_REPORT_SIZE (8),
+        HID_REPORT_COUNT (1),
+        HID_FEATURE (DATA, VARIABLE, ABSOLUTE),
+
+        HID_USAGE (DEVICE_MANAGED_POOL),
+        HID_USAGE (SHARED_PARAMETER_BLOCKS),
+        HID_REPORT_SIZE (1),
+        HID_REPORT_COUNT (2),
+        HID_LOGICAL_MINIMUM1 (0),
+        HID_LOGICAL_MAXIMUM1 (1),
+        HID_PHYSICAL_MINIMUM1 (0),
+        HID_PHYSICAL_MAXIMUM1 (1),
+        HID_FEATURE (DATA, VARIABLE, ABSOLUTE),
+
+        HID_REPORT_SIZE (6),
+        HID_REPORT_COUNT (1),
+        HID_FEATURE (CONSTANT, VARIABLE, ABSOLUTE),
+      HID_END_COLLECTION(LOGICAL),
+
+  HID_END_COLLECTION(APPLICATION)    /*     END_COLLECTION	             */	                                 
 };
 
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
