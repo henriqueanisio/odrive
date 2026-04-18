@@ -155,7 +155,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
           0x05, 0x01,        /* Usage Page (Generic Desktop)                  */
           0x09, 0x30,        /* Usage (X)                                     */
           0x15, 0x00,
-          0x25, 0x00,
+          0x25, 0x01,        /* Logical Maximum (1) — bit: 0=disabled 1=enabled */
           0x75, 0x01,
           0x95, 0x01,
           0x91, 0x02,
