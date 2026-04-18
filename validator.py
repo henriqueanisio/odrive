@@ -4,10 +4,10 @@ from collections import defaultdict
 FILE = r'c:/Users/PC/Desktop/MeuOdrive/ODrive/Firmware/Board/v3/Src/usbd_hid_if.c'
 
 EXPECTED = {
-    0x40: 3,   # JOYSTICK
-    0x20: 52,  # TELEMETRY
-    0x21: 8,   # COMMAND
-    0x22: 6    # CONFIG RESP
+    0x01: 3,   # JOYSTICK
+    0x13: 52,  # TELEMETRY
+    0x14: 6,   # COMMAND
+    0x15: 8    # CONFIG RESP
 }
 
 TYPE_MAP = {
@@ -45,26 +45,47 @@ i = 0
 while i < len(data):
     b = data[i]
 
-    if b == 0x85:  # REPORT_ID
+    # REPORT_ID
+    if b == 0x85:
         current_id = data[i+1]
         i += 2
         continue
 
-    if b == 0x75:  # REPORT_SIZE
+    # REPORT_SIZE
+    if b == 0x75:
         report_size = data[i+1]
         i += 2
         continue
 
-    if b == 0x95:  # REPORT_COUNT
+    # REPORT_COUNT
+    if b == 0x95:
         report_count = data[i+1]
         i += 2
         continue
 
-    if b in TYPE_MAP:  # INPUT / OUTPUT / FEATURE
-        if current_id is not None and report_size and report_count:
+    # COLLECTION → reseta contexto local
+    if b == 0xA1:
+        report_size = None
+        report_count = None
+        i += 2
+        continue
+
+    # END_COLLECTION → idem
+    if b == 0xC0:
+        report_size = None
+        report_count = None
+        i += 1
+        continue
+
+    # INPUT / OUTPUT / FEATURE
+    if b in TYPE_MAP:
+        rid = current_id if current_id is not None else 0
+
+        if report_size is not None and report_count is not None:
             size_bytes = (report_size * report_count) // 8
-            reports[current_id]["size"] += size_bytes
-            reports[current_id]["types"].add(TYPE_MAP[b])
+            reports[rid]["size"] += size_bytes
+            reports[rid]["types"].add(TYPE_MAP[b])
+
         i += 2
         continue
 
