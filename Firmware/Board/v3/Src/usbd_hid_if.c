@@ -7,15 +7,14 @@
  *
  * TWO top-level Application Collections (TLCs) — one HID interface.
  *
- * PID FFB reports are integrated inside the Joystick TLC (Col01).
- * DirectInput opens Col01 and searches for FFB Output reports within that
- * same TLC — if they were in a separate PID TLC, DirectInput would not find
- * them and games would never send FFB. This is the fix.
+ * TLC1 uses UP:000F/U:0001 (Physical Interface Device) so DirectInput sets
+ * DIDC_FORCEFEEDBACK and CreateEffect succeeds. Axis + buttons live inside
+ * the same PID Application Collection — exactly how commercial FFB wheels work.
  *
- *   TLC1 — Generic Desktop / Joystick  (UP:0001 U:0004)  1066 bytes
+ *   TLC1 — Physical Interface Device   (UP:000F U:0001)  1063 bytes
  *       Report 0x40 IN  (3 B)  8 buttons + X axis
  *       Report 0x02 IN  (1 B)  PID State
- *       Reports 0x01-0x0D OUT  FFB effect/control  ← DirectInput finds these
+ *       Reports 0x01-0x0D OUT  FFB effect/control
  *       Reports 0x11-0x13 FEATURE  Create/Block/Pool
  *
  *   TLC2 — Vendor 0xFF00               (UP:FF00 U:0001)  53 bytes
@@ -23,40 +22,37 @@
  *       Report 0x22 IN  ( 6 B) Config Response
  *       Report 0x21 FEATURE (8 B) Command
  *
- * Total = 1066 + 53 = 1119 bytes = HID_REPORT_DESC_SIZE.
+ * Total = 1063 + 53 = 1116 bytes = HID_REPORT_DESC_SIZE.
  * ─────────────────────────────────────────────────────────────────────────── */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * TLC1 — Generic Desktop / Joystick  (44 bytes)
+     * TLC1 — Physical Interface Device  (UP:000F U:0001)
      * Report 0x40: 8 buttons (1 B) + X axis (2 B) = 3 B payload
-     * Uses 0x40 to avoid global Report ID conflict with PID's 0x01.
+     * UP:000F/U:0001 Application Collection → DirectInput sets DIDC_FORCEFEEDBACK.
      * ═══════════════════════════════════════════════════════════════════════ */
-    0x05, 0x01,        /* Usage Page (Generic Desktop)                        */
-    0x09, 0x04,        /* Usage (Joystick)                                    */
-    0xA1, 0x01,        /* Collection (Application)                            */
-      0xA1, 0x00,      /* Collection (Physical)                               */
-        0x85, 0x40,    /* Report ID (0x40)                                    */
-        0x05, 0x09,    /* Usage Page (Button)                                 */
-        0x19, 0x01,    /* Usage Minimum (1)                                   */
-        0x29, 0x08,    /* Usage Maximum (8)                                   */
-        0x15, 0x00,    /* Logical Minimum (0)                                 */
-        0x25, 0x01,    /* Logical Maximum (1)                                 */
-        0x75, 0x01,    /* Report Size (1)                                     */
-        0x95, 0x08,    /* Report Count (8) — 8 buttons = 1 byte              */
-        0x81, 0x02,    /* Input (Variable)                                    */
-        0x05, 0x01,    /* Usage Page (Generic Desktop)                        */
-        0x09, 0x30,    /* Usage (X)                                           */
-        0x16, 0x00, 0x80, /* Logical Minimum (-32768)                         */
-        0x26, 0xFF, 0x7F, /* Logical Maximum (32767)                          */
-        0x75, 0x10,    /* Report Size (16)                                    */
-        0x95, 0x01,    /* Report Count (1)                                    */
-        0x81, 0x02,    /* Input (Variable, Absolute)                          */
-      0xC0,            /* End Collection (Physical)                           */
+    0x05, 0x0F,        /* Usage Page (Physical Interface Device)               */
+    0x09, 0x01,        /* Usage (Physical Interface Device)                    */
+    0xA1, 0x01,        /* Collection (Application)                             */
+      0x85, 0x40,      /* Report ID (0x40)                                     */
+      0x05, 0x09,      /* Usage Page (Button)                                  */
+      0x19, 0x01,      /* Usage Minimum (1)                                    */
+      0x29, 0x08,      /* Usage Maximum (8)                                    */
+      0x15, 0x00,      /* Logical Minimum (0)                                  */
+      0x25, 0x01,      /* Logical Maximum (1)                                  */
+      0x75, 0x01,      /* Report Size (1)                                       */
+      0x95, 0x08,      /* Report Count (8) — 8 buttons = 1 byte               */
+      0x81, 0x02,      /* Input (Variable)                                      */
+      0x05, 0x01,      /* Usage Page (Generic Desktop)                          */
+      0x09, 0x30,      /* Usage (X)                                             */
+      0x16, 0x00, 0x80, /* Logical Minimum (-32768)                             */
+      0x26, 0xFF, 0x7F, /* Logical Maximum (32767)                              */
+      0x75, 0x10,      /* Report Size (16)                                      */
+      0x95, 0x01,      /* Report Count (1)                                      */
+      0x81, 0x02,      /* Input (Variable, Absolute)                            */
 
     /* ═══════════════════════════════════════════════════════════════════════
-     * PID Force Feedback — integrated into Joystick TLC (Col01)
-     * DirectInput finds FFB Output reports within the same TLC as the joystick.
+     * PID Force Feedback — inside TLC1 Physical Interface Device Application
      * ═══════════════════════════════════════════════════════════════════════ */
     0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
 
@@ -554,7 +550,7 @@ __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
         0xB1, 0x03,
       0xC0,
 
-    0xC0,              /* End Collection (TLC1 Joystick + PID)               */
+    0xC0,              /* End Collection (TLC1 Physical Interface Device + PID) */
 
     /* ═══════════════════════════════════════════════════════════════════════
      * TLC2 — Vendor 0xFF00  (UP:FF00 U:0001)  53 bytes
