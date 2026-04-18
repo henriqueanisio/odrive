@@ -53,54 +53,53 @@ extern "C" {
 #define FFB_REPORT_BLOCK_FREE          0x0BU
 #define FFB_REPORT_DEVICE_CONTROL      0x0CU
 #define FFB_REPORT_DEVICE_GAIN         0x0DU
-#define FFB_REPORT_CREATE_NEW_EFFECT   0x11U
+#define FFB_REPORT_CREATE_NEW_EFFECT   0x07U  /* Feature SET_REPORT (unique, no output conflict) */
 
 /* HID PID report IDs (device → host) */
-#define FFB_REPORT_PID_STATE           0x02U  /* IN  — same direction as envelope, OK */
-#define FFB_REPORT_PID_BLOCK_LOAD      0x12U  /* Feature GET_REPORT              */
-#define FFB_REPORT_PID_POOL            0x13U  /* Feature GET_REPORT              */
+#define FFB_REPORT_PID_STATE           0x02U  /* IN  — shared ID with SetEnvelope OUT, OK */
+#define FFB_REPORT_PID_BLOCK_LOAD      0x08U  /* Feature GET_REPORT              */
+#define FFB_REPORT_PID_POOL            0x09U  /* Feature GET_REPORT              */
 
 /* ── Effect Operation op-codes ───────────────────────────────────────────── */
 #define FFB_OP_START       1U
 #define FFB_OP_START_SOLO  2U
 #define FFB_OP_STOP        3U
 
-/* ── Device Control bit flags (OpenFFBoard bit-flag approach, 1 bit per cmd) ─
- *   Host sends one byte; each bit = one DC command.
- *   Bit 0 = Enable Actuators, Bit 1 = Disable, Bit 2 = Stop All, etc.       */
-#define FFB_DC_ENABLE_ACTUATORS   0x01U
-#define FFB_DC_DISABLE_ACTUATORS  0x02U
-#define FFB_DC_STOP_ALL_EFFECTS   0x04U
-#define FFB_DC_DEVICE_RESET       0x08U
-#define FFB_DC_DEVICE_PAUSE       0x10U
-#define FFB_DC_DEVICE_CONTINUE    0x20U
+/* ── Device Control selector values (descriptor: Array, 1 byte, values 1-6) ─
+ *   Host sends one byte with a selector value. Matches PIDDeviceControl
+ *   descriptor: DC_ENABLE_ACTUATORS(0x97)..DC_DEVICE_CONTINUE(0x9C).        */
+#define FFB_DC_ENABLE_ACTUATORS   1U
+#define FFB_DC_DISABLE_ACTUATORS  2U
+#define FFB_DC_STOP_ALL_EFFECTS   3U
+#define FFB_DC_DEVICE_RESET       4U
+#define FFB_DC_DEVICE_PAUSE       5U
+#define FFB_DC_DEVICE_CONTINUE    6U
 
 /* ── HID PID packed report structures (host → device) ───────────────────────
  * Byte layout must match the HID report descriptor exactly.
  * ─────────────────────────────────────────────────────────────────────────── */
 
-/* Report 0x01 — Set Effect (12 bytes, matches OpenFFBoard SETEFREP) */
+/* Report 0x01 — Set Effect (10 bytes, matches stm32_ffb_wheel reference) */
 typedef struct __attribute__((packed)) {
     uint8_t  effect_block_index;   /* 1-based slot                              */
     uint8_t  effect_type;          /* FFB_ET_xxx selector (1=const..11=friction) */
-    uint16_t duration;             /* ms; 0x7FFF = infinite                     */
+    uint16_t duration;             /* ms; 0xFFFF = infinite                     */
     uint16_t trigger_repeat;       /* ms                                        */
-    uint16_t sample_period;        /* ms                                        */
-    uint16_t start_delay;          /* ms                                        */
+    uint16_t sample_period;        /* µs                                        */
     uint8_t  gain;                 /* 0–255                                     */
-    uint8_t  trigger_button;       /* 0 = no trigger                            */
-} FFB_SetEffect_t;                 /* 12 bytes                                  */
+    uint8_t  enable_axis;          /* bit0=axis enabled (steering); bits 1-7 pad */
+} FFB_SetEffect_t;                 /* 10 bytes (no start_delay in this descriptor) */
 
-/* Report 0x07 — Set Condition (13 bytes) */
+/* Report 0x03 — Set Condition (16 bytes, matches reference descriptor) */
 typedef struct __attribute__((packed)) {
     uint8_t  effect_block_index;
-    uint8_t  param_block_offset;   /* axis index: 0=X                           */
-    int16_t  cp_offset;            /* -10000..+10000                            */
-    int16_t  positive_coefficient; /* 0..10000                                  */
-    int16_t  negative_coefficient; /* 0..10000                                  */
-    uint16_t positive_saturation;  /* 0..10000                                  */
-    uint16_t dead_band;            /* 0..10000  (half-width, centred on cp_offset) */
-} FFB_SetCondition_t;              /* 12 bytes                                  */
+    int16_t  cp_offset;            /* -16384..+16384                            */
+    int16_t  positive_coefficient; /* -16384..+16384                            */
+    int16_t  negative_coefficient; /* -16384..+16384                            */
+    uint16_t positive_saturation;  /* 0..16384                                  */
+    uint16_t negative_saturation;  /* 0..16384                                  */
+    uint16_t dead_band;            /* 0..16384                                  */
+} FFB_SetCondition_t;              /* 15 bytes                                  */
 
 /* Report 0x06 — Set Periodic (9 bytes) */
 typedef struct __attribute__((packed)) {

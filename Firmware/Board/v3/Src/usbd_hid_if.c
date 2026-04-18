@@ -7,583 +7,698 @@
  *
  * TWO top-level Application Collections (TLCs) — one HID interface.
  *
- * TLC1 uses UP:000F/U:0001 (Physical Interface Device) so DirectInput sets
- * DIDC_FORCEFEEDBACK and CreateEffect succeeds. Axis + buttons live inside
- * the same PID Application Collection — exactly how commercial FFB wheels work.
+ * TLC1 is GENERIC_DESKTOP/JOYSTICK (UP:0001/U:0004).  DirectInput requires
+ * the FFB Output reports to appear inside a JOYSTICK Application Collection —
+ * not inside a PID (UP:000F) Application Collection — to set DIDC_FORCEFEEDBACK.
+ * This matches the stm32_ffb_wheel reference implementation that is confirmed
+ * working.
  *
- *   TLC1 — Physical Interface Device   (UP:000F U:0001)  1063 bytes
- *       Report 0x40 IN  (3 B)  8 buttons + X axis
+ *   TLC1 — Generic Desktop / Joystick  (UP:0001 U:0004)  1244 bytes
+ *       Report 0x40 IN  (3 B)  8 buttons + X (steering) axis
  *       Report 0x02 IN  (1 B)  PID State
  *       Reports 0x01-0x0D OUT  FFB effect/control
- *       Reports 0x11-0x13 FEATURE  Create/Block/Pool
+ *       Report  0x07 FEATURE   Create New Effect (SET_REPORT)
+ *       Report  0x08 FEATURE   PID Block Load    (GET_REPORT)
+ *       Report  0x09 FEATURE   PID Pool          (GET_REPORT)
  *
- *   TLC2 — Vendor 0xFF00               (UP:FF00 U:0001)  53 bytes
+ *   TLC2 — Vendor 0xFF00               (UP:FF00 U:0001)   53 bytes
  *       Report 0x20 IN  (52 B) Telemetry
  *       Report 0x22 IN  ( 6 B) Config Response
  *       Report 0x21 FEATURE (8 B) Command
  *
- * Total = 1063 + 53 = 1116 bytes = HID_REPORT_DESC_SIZE.
+ * Total = 1244 + 53 = 1297 bytes = HID_REPORT_DESC_SIZE.
  * ─────────────────────────────────────────────────────────────────────────── */
 __ALIGN_BEGIN uint8_t HID_ReportDesc[HID_REPORT_DESC_SIZE] __ALIGN_END = {
 
-    /* ═══════════════════════════════════════════════════════════════════════
-     * TLC1 — Physical Interface Device  (UP:000F U:0001)
-     * Report 0x40: 8 buttons (1 B) + X axis (2 B) = 3 B payload
-     * UP:000F/U:0001 Application Collection → DirectInput sets DIDC_FORCEFEEDBACK.
-     * ═══════════════════════════════════════════════════════════════════════ */
-    0x05, 0x0F,        /* Usage Page (Physical Interface Device)               */
-    0x09, 0x01,        /* Usage (Physical Interface Device)                    */
-    0xA1, 0x01,        /* Collection (Application)                             */
-      0x85, 0x40,      /* Report ID (0x40)                                     */
-      0x05, 0x09,      /* Usage Page (Button)                                  */
-      0x19, 0x01,      /* Usage Minimum (1)                                    */
-      0x29, 0x08,      /* Usage Maximum (8)                                    */
-      0x15, 0x00,      /* Logical Minimum (0)                                  */
-      0x25, 0x01,      /* Logical Maximum (1)                                  */
-      0x75, 0x01,      /* Report Size (1)                                       */
-      0x95, 0x08,      /* Report Count (8) — 8 buttons = 1 byte               */
-      0x81, 0x02,      /* Input (Variable)                                      */
-      0x05, 0x01,      /* Usage Page (Generic Desktop)                          */
-      0x09, 0x30,      /* Usage (X)                                             */
-      0x16, 0x00, 0x80, /* Logical Minimum (-32768)                             */
-      0x26, 0xFF, 0x7F, /* Logical Maximum (32767)                              */
-      0x75, 0x10,      /* Report Size (16)                                      */
-      0x95, 0x01,      /* Report Count (1)                                      */
-      0x81, 0x02,      /* Input (Variable, Absolute)                            */
+  /* ═══ TLC1 — Generic Desktop / Joystick Application Collection ═══════════
+   * JOYSTICK (UP:0001/U:0004) is required: DirectInput only sets
+   * DIDC_FORCEFEEDBACK when PID Output reports are found inside a JOYSTICK
+   * Application Collection. Using UP:000F/U:0001 (PID) as the top-level
+   * collection prevents DirectInput from recognising the axis. */
+  0x05, 0x01,        /* Usage Page (Generic Desktop)                          */
+  0x09, 0x04,        /* Usage (Joystick)                                      */
+  0xA1, 0x01,        /* Collection (Application)                              */
 
-    /* ═══════════════════════════════════════════════════════════════════════
-     * PID Force Feedback — inside TLC1 Physical Interface Device Application
-     * ═══════════════════════════════════════════════════════════════════════ */
-    0x05, 0x0F,        /* Usage Page (Physical Interface Device)              */
+  /* ─── Joystick Input Report 0x40: 8 buttons + steering axis ─────────────
+   * Uses 0x40 to avoid namespace collision with PID Output Report 0x01.    */
+  0x85, 0x40,        /* Report ID (0x40)                                      */
+  0xA1, 0x00,        /* Collection (Physical)                                 */
+    0x05, 0x09,      /* Usage Page (Button)                                   */
+    0x19, 0x01,      /* Usage Minimum (1)                                     */
+    0x29, 0x08,      /* Usage Maximum (8)                                     */
+    0x15, 0x00,      /* Logical Minimum (0)                                   */
+    0x25, 0x01,      /* Logical Maximum (1)                                   */
+    0x75, 0x01,      /* Report Size (1)                                       */
+    0x95, 0x08,      /* Report Count (8) = 1 byte                             */
+    0x81, 0x02,      /* Input (Variable)                                      */
+    0x05, 0x01,      /* Usage Page (Generic Desktop)                          */
+    0x09, 0x30,      /* Usage (X)                                             */
+    0x16, 0x00, 0x80,/* Logical Minimum (-32768)                              */
+    0x26, 0xFF, 0x7F,/* Logical Maximum (32767)                               */
+    0x75, 0x10,      /* Report Size (16)                                      */
+    0x95, 0x01,      /* Report Count (1)                                      */
+    0x81, 0x02,      /* Input (Variable, Absolute)                            */
+  0xC0,              /* End Collection (Physical)                             */
 
-      /* ── PID State Report 0x02 INPUT (STATEREP, 37 bytes) ── */
-      0x05, 0x0F,      /* Usage Page (Physical Interface Device)              */
-      0x09, 0x92,      /* Usage (PID State report)                            */
-      0xA1, 0x02,      /* Collection (Logical)                                */
-        0x85, 0x02,    /* Report ID (2)                                       */
-        0x09, 0x9F,    /* Usage (Device is Pause)                             */
-        0x09, 0xA0,    /* Usage (Actuators Enabled)                           */
-        0x09, 0xA4,    /* Usage (Safety Switch)                               */
-        0x09, 0xA6,    /* Usage (Actuator Power)                              */
-        0x09, 0x94,    /* Usage (Effect Playing)                              */
-        0x15, 0x00,    /* Logical Minimum (0)                                 */
-        0x25, 0x01,    /* Logical Maximum (1)                                 */
-        0x35, 0x00,    /* Physical Minimum (0)                                */
-        0x45, 0x01,    /* Physical Maximum (1)                                */
-        0x75, 0x01,    /* Report Size (1)                                     */
-        0x95, 0x05,    /* Report Count (5)                                    */
-        0x81, 0x02,    /* Input (Variable)                                    */
-        0x95, 0x03,    /* Report Count (3) — padding                          */
-        0x81, 0x03,    /* Input (Constant, Variable)                          */
-      0xC0,            /* End Collection (PID State)                          */
+// PID State Report
+  0x05, 0x0F,          // USAGE_PAGE (Physical Interface)
+  0x09, 0x92,          // USAGE (PID State Report)
+  0xA1, 0x02,          // COLLECTION (Logical)
+	0x85, 0x02,          // REPORT_ID (02)
+	0x09, 0x9F,          // USAGE (Device Paused)
+	0x09, 0xA0,          // USAGE (Actuators Enabled)
+	0x09, 0xA4,          // USAGE (Safety Switch)
+	0x09, 0xA5,          // USAGE (Actuator Override Switch)
+	0x09, 0xA6,          // USAGE (Actuator Power)
+	0x15, 0x00,          // LOGICAL_MINIMUM (00)
+	0x25, 0x01,           //  Logical Maximum (1)
+	0x35, 0x00,           //  Physical Minimum (0)
+	0x45, 0x01,           //  Physical Maximum (1)
+	0x75, 0x01,           //  Report Size (1)
+	0x95, 0x05,           //  Report Count (5)
+	0x81, 0x02,           //  Input (variable,absolute)
+	0x95, 0x03,           //  Report Count (3)
+	0x81, 0x03,           //  Input (Constant, Variable)
+	0x09, 0x94,           //  Usage (Effect Playing)
+	0x15, 0x00,           //  Logical Minimum (0)
+	0x25, 0x01,           //  Logical Maximum (1)
+	0x35, 0x00,           //  Physical Minimum (0)
+	0x45, 0x01,           //  Physical Maximum (1)
+	0x75, 0x01,           //  Report Size (1)
+	0x95, 0x01,           //  Report Count (1)
+	0x81, 0x02,           //  Input (variable,absolute)
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //  Logical Minimum (1)
+	0x25, 0x28,           //  Logical Maximum (40)
+	0x35, 0x01,           //  Physical Minimum (1)
+	0x45, 0x28,           //  Physical Maximum (40)
+	0x75, 0x07,           //  Report Size (7)
+	0x95, 0x01,           //  Report Count (1)
+	0x81, 0x02,           //  Input (variable,absolute)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x01 OUTPUT: Set Effect (SETEFREP, 131 bytes, NO closing C0) ──
-       * Collection stays open; axes/direction/type-block content follows.      */
-      0x09, 0x21,      /* Usage (Set Effect Report)                           */
-      0xA1, 0x02,      /* Collection (Logical) — closed AFTER inline content  */
-        0x85, 0x01,    /* Report ID (1)                                       */
-        0x09, 0x22,    /* Usage (Effect Block Index)                          */
-        0x15, 0x01,    /* Logical Minimum (1)                                 */
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,    /* Physical Minimum (1)                                */
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,    /* Report Size (8)                                     */
-        0x95, 0x01,    /* Report Count (1)                                    */
-        0x91, 0x02,    /* Output (Variable)                                   */
-        0x09, 0x25,    /* Usage (Effect Type)                                 */
-        0xA1, 0x02,    /* Collection (Logical)                                */
-          0x09, 0x26,  /* ET Constant Force                                   */
-          0x09, 0x27,  /* ET Ramp                                             */
-          0x09, 0x30,  /* ET Square                                           */
-          0x09, 0x31,  /* ET Sine                                             */
-          0x09, 0x32,  /* ET Triangle                                         */
-          0x09, 0x33,  /* ET Sawtooth Up                                      */
-          0x09, 0x34,  /* ET Sawtooth Down                                    */
-          0x09, 0x40,  /* ET Spring                                           */
-          0x09, 0x41,  /* ET Damper                                           */
-          0x09, 0x42,  /* ET Inertia                                          */
-          0x09, 0x43,  /* ET Friction                                         */
-          0x25, 0x0B,  /* Logical Maximum (11)                                */
-          0x15, 0x01,  /* Logical Minimum (1)                                 */
-          0x35, 0x01,  /* Physical Minimum (1)                                */
-          0x45, 0x0B,  /* Physical Maximum (11)                               */
-          0x75, 0x08,  /* Report Size (8)                                     */
-          0x95, 0x01,  /* Report Count (1)                                    */
-          0x91, 0x00,  /* Output (Array)                                      */
-        0xC0,          /* End Collection (Effect Type)                        */
-        0x09, 0x50,    /* Usage (Duration)                                    */
-        0x09, 0x54,    /* Usage (Trigger Repeat Interval)                     */
-        0x09, 0x51,    /* Usage (Sample Period)                               */
-        0x09, 0xA7,    /* Usage (Start Delay)                                 */
-        0x15, 0x00,    /* Logical Minimum (0)                                 */
-        0x26, 0xFF, 0x7F,
-        0x35, 0x00,    /* Physical Minimum (0)                                */
-        0x46, 0xFF, 0x7F,
-        0x66, 0x03, 0x10,  /* Unit (ms)                                       */
-        0x55, 0xFD,    /* Unit Exponent (-3)                                  */
-        0x75, 0x10,    /* Report Size (16)                                    */
-        0x95, 0x04,    /* Report Count (4)                                    */
-        0x91, 0x02,    /* Output (Variable)                                   */
-        0x55, 0x00,    /* Unit Exponent (0)                                   */
-        0x66, 0x00, 0x00,
-        0x09, 0x52,    /* Usage (Gain)                                        */
-        0x15, 0x00,
-        0x26, 0xFF, 0x00,
-        0x35, 0x00,
-        0x46, 0x10, 0x27,  /* Physical Maximum (10000)                        */
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x53,    /* Usage (Trigger Button)                              */
-        0x15, 0x01,
-        0x25, 0x08,
-        0x35, 0x01,
-        0x45, 0x08,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,    /* Output (Variable) — NO 0xC0 here                   */
+  //================================OutputReport======================================//
 
-      /* ── Inline: Axes Enable + Direction + Type Specific Block Offset (94 B) ─
-       * Inside the Set Effect Logical Collection opened above.
-       * The final 0xC0 closes that collection.                                */
-        0x09, 0x55,          /* Usage (Axes Enable)                           */
-        0xA1, 0x02,
-          0x05, 0x01,        /* Usage Page (Generic Desktop)                  */
-          0x09, 0x30,        /* Usage (X)                                     */
-          0x15, 0x00,
-          0x25, 0x01,        /* Logical Maximum (1) — bit: 0=disabled 1=enabled */
-          0x75, 0x01,
-          0x95, 0x01,
-          0x91, 0x02,
-        0xC0,                /* End Collection (Axes Enable)                  */
-        0x05, 0x0F,          /* Usage Page (Physical Interface)               */
-        0x09, 0x56,          /* Usage (Direction Enable)                      */
-        0x95, 0x01,
-        0x91, 0x02,
-        0x95, 0x06,          /* Report Count (6) — padding                    */
-        0x91, 0x03,
-        0x09, 0x57,          /* Usage (Direction)                             */
-        0xA1, 0x02,
-          0x0B, 0x01, 0x00, 0x0A, 0x00,
-          0x66, 0x14, 0x00,
-          0x15, 0x00,
-          0x27, 0xA0, 0x8C, 0x00, 0x00,  /* Logical Maximum (36000)           */
-          0x35, 0x00,
-          0x47, 0xA0, 0x8C, 0x00, 0x00,  /* Physical Maximum (36000)          */
-          0x66, 0x00, 0x00,
-          0x75, 0x10,
-          0x95, 0x01,
-          0x91, 0x02,
-          0x55, 0x00,
-          0x66, 0x00, 0x00,
-        0xC0,                /* End Collection (Direction)                    */
-        0x05, 0x0F,
-        0x09, 0x58,          /* Usage (Type Specific Block Offset)            */
-        0xA1, 0x02,
-          0x0B, 0x01, 0x00, 0x0A, 0x00,
-          0x26, 0xFD, 0x7F,  /* Logical Maximum (32765)                       */
-          0x75, 0x10,
-          0x95, 0x01,
-          0x91, 0x02,
-        0xC0,                /* End Collection (Type Specific Block Offset)   */
-      0xC0,                  /* End Collection (Set Effect Report)            */
+  // SetEffectReport
+  0x09, 0x21,           //Usage (Set Effect Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x01,           //Report ID 1
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x25,           //  Usage (Effect Type)
+	0xA1, 0x02,           //    Collection Datalink (Logical)
+	  0x09, 0x26,           // USAGE (26)
+	  0x09, 0x27,           // USAGE (27)
+	  0x09, 0x30,           // USAGE (30)
+	  0x09, 0x31,           // USAGE (31)
+	  0x09, 0x32,           // USAGE (32)
+	  0x09, 0x33,           // USAGE (33)
+	  0x09, 0x34,           // USAGE (34)
+	  0x09, 0x40,           // USAGE (40)
+	  0x09, 0x41,           // USAGE (41)
+	  0x09, 0x42,           // USAGE (42)
+	  0x09, 0x43,           // USAGE (43)
+	  0x09, 0x28,           // USAGE (28)
+	  0x09, 0x28,           // Usage (ET Custom Force Data)
+	  0x15, 0x01,           //       Logical Minimum (1)
+	  0x25, 0x0C,           //       Logical Maximum (12)
+	  0x35, 0x01,           //       Physical Minimum (1)
+	  0x45, 0x0C,           //       Physical Maximum (12)
+	  0x75, 0x08,           //       Report Size (8)
+	  0x95, 0x01,           //       Report Count (1)
+	  0x91, 0x00,           //       Output (Data)
+	0xC0,                 //    End Collection Datalink (Logical)
+	0x09, 0x50,           //    Usage (Duration)
+	0x09, 0x54,           //    Usage (Trigger Repeat Interval)
+	0x09, 0x51,           //    Usage (Sample Period)
+	0x15, 0x00,           //     Logical Minimum (0)
+	0x26, 0xFF, 0x7F,     //     Logical Maximum (32767)
+	0x35, 0x00,           //     Physical Minimum (1)
+	0x46, 0xFF, 0x7F,     //     Physical Maximum (32767)
+	0x66, 0x03, 0x10,     //     Unit (4099)
+	0x55, 0xFD,           //     Unit Exponent (253)
+	0x75, 0x10,           //     Report Size (16)
+	0x95, 0x03,           //     Report Count (3)
+	0x91, 0x02,           //     Output (Data,Var,Abs)
+	0x55, 0x00,           //     Unit Exponent (0)
+	0x66, 0x00, 0x00,     //     Unit (0)
+	0x09, 0x52,           //    Usage (Gain)
+	0x15, 0x00,           //     Logical Minimum (0)
+	0x26, 0xFF, 0x00,     //     Logical Maximum (255)
+	0x35, 0x00,           //     Physical Minimum (1)
+	0x46, 0x10, 0x27,     //     Physical Maximum (10000)
+	0x75, 0x08,           //     Report Size (8)
+	0x95, 0x01,           //     Report Count (1)
+	0x91, 0x02,           //     Output (Data,Var,Abs)
+	0x09, 0x53,           //    Usage (Trigger Button)
+	0x15, 0x01,           //     Logical Minimum (1)
+	0x25, 0x08,           //     Logical Maximum (8)
+	0x35, 0x01,           //     Physical Minimum (1)
+	0x45, 0x08,           //     Physical Maximum (8)
+	0x75, 0x08,           //     Report Size (8)
+	0x95, 0x01,           //     Report Count (1)
+	0x91, 0x02,           //     Output (Data,Var,Abs)
+	0x09, 0x55,           //    Usage (Axes Enable)
+	0xA1, 0x02,           //      Collection Datalink (Logical)
+	  0x05, 0x01,           //        Usage Page (Generic Desktop)
+	  0x09, 0x30,           //        Usage (X)//
+	  0x09, 0x31,           //        Usage (Y)//
+	  0x15, 0x00,           //        Logical Minimum (0)
+	  0x25, 0x01,           //        Logical Maximum (1)
+	  0x75, 0x01,           //        Report Size (1)
+	  0x95, 0x02,           //        Report Count (2)
+	  0x91, 0x02,           //        Output (Data,Var,Abs)
+	0xC0,                 //      End Collection Datalink (Logical)
 
-      /* ── Report 0x02 OUTPUT: Set Envelope (SETENVREP, 75 bytes) ── */
-      0x09, 0x5A,
-      0xA1, 0x02,
-        0x85, 0x02,
-        0x09, 0x22,
-        0x15, 0x01,
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x5B,    /* Attack Level                                        */
-        0x09, 0x5D,    /* Fade Level                                          */
-        0x16, 0x00, 0x00,
-        0x26, 0xFF, 0x7F,
-        0x36, 0x00, 0x00,
-        0x46, 0xFF, 0x7F,
-        0x75, 0x10,
-        0x95, 0x02,
-        0x91, 0x02,
-        0x09, 0x5C,    /* Attack Time                                         */
-        0x09, 0x5E,    /* Fade Time                                           */
-        0x66, 0x03, 0x10,
-        0x55, 0xFD,
-        0x27, 0xFF, 0x7F, 0x00, 0x00,
-        0x47, 0xFF, 0x7F, 0x00, 0x00,
-        0x75, 0x20,
-        0x91, 0x02,    /* inherits Count (2)                                  */
-        0x45, 0x00,
-        0x66, 0x00, 0x00,
-        0x55, 0x00,
-      0xC0,
+	0x05, 0x0F,           //    Usage Page (Physical Interface)
+	0x09, 0x56,           //      Usage (Direction Enable)
+	0x95, 0x01,           //        Report Count (1)
+	0x91, 0x02,           //        Output (Data,Var,Abs)
+	0x95, 0x05,           //        Report Count (5)
+	0x91, 0x03,           //        Output (Constant, Variable)
+	0x09, 0x57,           //      Usage (Direction)
+	0xA1, 0x02,           //        Collection Datalink (Logical)
+	  0x0B, 0x01, 0, 0x0A, 0,  //          Usage (Ordinals: Instance 1)
+	  0x0B, 0x02, 0, 0x0A, 0,  //          Usage (Ordinals: Instance 2)
+	  0x66, 0x14, 0x00,     //          Unit (20)
+	  0x55, 0xFE,           //          Unit Exponent (254)
+	  0x15, 0x00,           //          Logical Minimum (0)
+	  0x26, 0xFF, 0x00,     //          Logical Maximum (255)
+	  0x35, 0x00,           //          Physical Minimum (1)
+	  0x47, 0xA0, 0x8C, 0, 0, //          Physical Maximum (36000)
+	  0x66, 0x00, 0x00,     //          Unit (0)
+	  0x75, 0x08,           //          Report Size (8)
+	  0x95, 0x02,           //          Report Count (2)
+	  0x91, 0x02,           //          Output (Data,Var,Abs)
+	  0x55, 0x00,           //          Unit Exponent (0)
+	  0x66, 0x00, 0x00,     //          Unit (0)
+	0xC0,                 //        End Collection Datalink (Logical)
 
-      /* ── Report 0x03 OUTPUT: Set Condition (inline 1-axis, 120 bytes) ── */
-      0x09, 0x5F,
-      0xA1, 0x02,
-        0x85, 0x03,
-        0x09, 0x22,
-        0x15, 0x01,
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x23,    /* Parameter Block Offset                              */
-        0x15, 0x00,
-        0x25, 0x03,
-        0x35, 0x00,
-        0x45, 0x03,
-        0x75, 0x06,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x58,    /* Type Specific Block Offset                          */
-        0xA1, 0x02,
-          0x0B, 0x01, 0x00, 0x0A, 0x00,
-          0x75, 0x02,
-          0x95, 0x01,
-          0x91, 0x02,
-        0xC0,
-        0x16, 0x00, 0x80,
-        0x26, 0xFF, 0x7F,
-        0x36, 0x00, 0x80,
-        0x46, 0xFF, 0x7F,
-        0x09, 0x60,    /* CP Offset                                           */
-        0x75, 0x10,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x36, 0x00, 0x80,
-        0x46, 0xFF, 0x7F,
-        0x09, 0x61,    /* Positive Coefficient                                */
-        0x09, 0x62,    /* Negative Coefficient                                */
-        0x95, 0x02,
-        0x91, 0x02,
-        0x16, 0x00, 0x00,
-        0x26, 0xFF, 0x7F,
-        0x36, 0x00, 0x00,
-        0x46, 0xFF, 0x7F,
-        0x09, 0x63,    /* Positive Saturation                                 */
-        0x09, 0x64,    /* Negative Saturation                                 */
-        0x75, 0x10,
-        0x95, 0x02,
-        0x91, 0x02,
-        0x09, 0x65,    /* Dead Band                                           */
-        0x46, 0xFF, 0x7F,
-        0x95, 0x01,
-        0x91, 0x02,
-      0xC0,
 
-      /* ── Report 0x04 OUTPUT: Set Periodic (SETPERIODICREP, 122 bytes) ── */
-      0x09, 0x6E,
-      0xA1, 0x02,
-        0x85, 0x04,
-        0x09, 0x22,
-        0x15, 0x01,
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x70,    /* Magnitude                                           */
-        0x16, 0x00, 0x00,
-        0x26, 0xFF, 0x7F,
-        0x36, 0x00, 0x00,
-        0x26, 0xFF, 0x7F,  /* intentional 0x26 — matches OpenFFBoard          */
-        0x75, 0x10,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x6F,    /* Offset                                              */
-        0x16, 0x00, 0x80,
-        0x26, 0xFF, 0x7F,
-        0x36, 0x00, 0x80,
-        0x46, 0xFF, 0x7F,
-        0x95, 0x01,
-        0x75, 0x10,
-        0x91, 0x02,
-        0x09, 0x71,    /* Phase                                               */
-        0x66, 0x14, 0x00,
-        0x55, 0xFE,
-        0x15, 0x00,
-        0x27, 0x9F, 0x8C, 0x00, 0x00,
-        0x35, 0x00,
-        0x47, 0x9F, 0x8C, 0x00, 0x00,
-        0x75, 0x10,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x72,    /* Period                                              */
-        0x15, 0x01,
-        0x27, 0xFF, 0x7F, 0x00, 0x00,
-        0x35, 0x01,
-        0x47, 0xFF, 0x7F, 0x00, 0x00,
-        0x66, 0x03, 0x10,
-        0x55, 0xFD,
-        0x75, 0x20,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x66, 0x00, 0x00,
-        0x55, 0x00,
-      0xC0,
+	0x05, 0x0F,           //    Usage Page (Physical Interface)
+	0x09, 0x58,           //      Usage (Type Specific Block Offset)
+	0xA1, 0x02,           //        Collection (Logical)
+	  0x0B, 0x01, 0, 0x0A, 0,  //          Usage (Ordinals: Instance 1)
+	  0x0B, 0x02, 0, 0x0A, 0,  //          Usage (Ordinals: Instance 2)
+	  0x26, 0xFD, 0x7F,     //          Logical Maximum (32765); 32K RAM or ROM max.
+	  0x75, 0x10,           //          Report Size (16)
+	  0x95, 0x02,           //          Report Count (2)
+	  0x91, 0x02,           //          Output (Data,Var,Abs)
+	0xC0,                 //        End Collection (Logical)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x05 OUTPUT: Set Constant Force (SETCFREP, 43 bytes) ── */
-      0x09, 0x73,
-      0xA1, 0x02,
-        0x85, 0x05,
-        0x09, 0x22,
-        0x15, 0x01,
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x70,    /* Magnitude                                           */
-        0x16, 0x01, 0x80,
-        0x26, 0xFF, 0x7F,
-        0x36, 0x01, 0x80,
-        0x46, 0xFF, 0x7F,
-        0x75, 0x10,
-        0x95, 0x01,
-        0x91, 0x02,
-      0xC0,
+  // SetEnvelopeReport
+  0x09, 0x5A,           //Usage (Set Envelope Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x02,           //Report ID 2
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x5B,           //  Usage (Attack Level)
+	0x09, 0x5D,           //  Usage (Fade Level)
+	0x16, 0x00, 0x00,     //   Logical Minimum (0)
+	0x26, 0x10, 0x27,     //   Logical Maximum (10000)
+	0x36, 0x00, 0x00,     //   Physical Minimum (0)
+	0x46, 0x10, 0x27,     //   Physical Maximum (10000)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x02,           //   Report Count (2)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x5C,           //  Usage (Attack Time)
+	0x09, 0x5E,           //  Usage (Fade Time)
+	0x66, 0x03, 0x10,     //   Unit (1003h) English Linear, Seconds
+	0x55, 0xFD,           //   Unit Exponent (FDh) (X10^-3 ==> Milisecond)
+	0x27, 0xFF, 0x7F, 0, 0, //   Logical Maximum (4294967295)
+	0x47, 0xFF, 0x7F, 0, 0, //   Physical Maximum (4294967295)
+	0x75, 0x20,           //   Report Size (16)
+	0x95, 0x02,           //   Report Count (2)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x45, 0x00,           //   Physical Maximum (0)
+	0x66, 0x00, 0x00,     //   Unit (0)
+	0x55, 0x00,           //   Unit Exponent (0)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x06 OUTPUT: Set Ramp Force (SETRAMPREP, 45 bytes) ── */
-      0x09, 0x74,
-      0xA1, 0x02,
-        0x85, 0x06,
-        0x09, 0x22,
-        0x15, 0x01,
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x75,    /* Ramp Start                                          */
-        0x09, 0x76,    /* Ramp End                                            */
-        0x16, 0x00, 0x80,
-        0x26, 0xFF, 0x7F,
-        0x36, 0x00, 0x80,
-        0x46, 0xFF, 0x7F,
-        0x75, 0x10,
-        0x95, 0x02,
-        0x91, 0x02,
-      0xC0,
+  // SetConditionReport
+  0x09, 0x5F,           //Usage (Set Condition Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x03,           //Report ID 3
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x23,           //  Usage (Parameter Block Offset)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x25, 0x03,           //   Logical Maximum (3)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x45, 0x03,           //   Physical Maximum (3)
+	0x75, 0x04,           //   Report Size (4)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x58,           //  Usage (Type Specific Block Off...)
+	0xA1, 0x02,           //  Collection Datalink (Logical)
+	  0x0B, 0x01, 0, 0x0A, 0,  //    Usage (Ordinals: Instance 1)
+	  0x0B, 0x02, 0, 0x0A, 0,  //    Usage (Ordinals: Instance 2)
+	  0x75, 0x02,           //     Report Size (2)
+	  0x95, 0x02,           //     Report Count (2)
+	  0x91, 0x02,           //     Output (Data,Var,Abs)
+	0xC0,                 //  End Collection Datalink (Logical)
+	0x16, 0xF0, 0xD8,       //  Logical Minimum (-10000)
+	0x26, 0x10, 0x27,       //  Logical Maximum (10000)
+	0x36, 0xF0, 0xD8,       //  Physical Minimum (-10000)
+	0x46, 0x10, 0x27,       //  Physical Maximum (10000)
+	0x09, 0x60,           //  Usage (CP Offset)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x36, 0xF0, 0xD8,       //  Physical Minimum (-10000)
+	0x46, 0x10, 0x27,       //  Physical Maximum (10000)
+	0x09, 0x61,           //  Usage (Positive Coefficient)
+	0x09, 0x62,           //  Usage (Negative Coefficient)
+	0x95, 0x02,           //   Report Count (2)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x16, 0x00, 0x00,       //   Logical Minimum (0)
+	0x26, 0x10, 0x27,       //   Logical Maximum (10000)
+	0x36, 0x00, 0x00,       //   Physical Minimum (0)
+	0x46, 0x10, 0x27,       //   Physical Maximum (10000)
+	0x09, 0x63,           //  Usage (Positive Saturation)
+	0x09, 0x64,           //  Usage (Negative Saturation)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x02,           //   Report Count (2)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x65,           //  Usage (Dead Band)
+	0x46, 0x10, 0x27,       //   Physical Maximum (10000)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x0A OUTPUT: Effect Operation (EFOPREP, 60 bytes) ── */
-      0x05, 0x0F,
-      0x09, 0x77,
-      0xA1, 0x02,
-        0x85, 0x0A,
-        0x09, 0x22,
-        0x15, 0x01,
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-        0x09, 0x78,
-        0xA1, 0x02,
-          0x09, 0x79,  /* Op Start                                            */
-          0x09, 0x7A,  /* Op Start Solo                                       */
-          0x09, 0x7B,  /* Op Stop                                             */
-          0x15, 0x01,
-          0x25, 0x03,
-          0x75, 0x08,
-          0x95, 0x01,
-          0x91, 0x00,
-        0xC0,
-        0x09, 0x7C,    /* Loop Count — 8-bit, inherits Size(8) Count(1)       */
-        0x15, 0x00,
-        0x26, 0xFF, 0x00,
-        0x35, 0x00,
-        0x46, 0xFF, 0x00,
-        0x91, 0x02,
-      0xC0,
+  // SetPeriodicReport
+  0x09, 0x6E,           //Usage (Set Periodic Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x04,           //Report ID 4
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x70,           //  Usage (Magnitude)
+	0x16, 0x00, 0x00,     //   Logical Minimum (0)
+	0x26, 0x10, 0x27,     //   Logical Maximum (10000)
+	0x36, 0x00, 0x00,     //   Physical Minimum (0)
+	0x46, 0x10, 0x27,     //   Physical Maximum (10000)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x6F,           //  Usage (Offset)
+	0x16, 0xF0, 0xD8,     //   Logical Minimum (-10000)
+	0x26, 0x10, 0x27,     //   Logical Maximum (10000)
+	0x36, 0xF0, 0xD8,     //   Physical Minimum (-10000)
+	0x46, 0x10, 0x27,     //   Physical Maximum (10000)
+	0x95, 0x01,           //   Report Count (1)
+	0x75, 0x10,           //   Report Size (16)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x71,           //  Usage (Phase)
+	0x66, 0x14, 0x00,     //   Unit (14h) (Eng Rotation, Degrees)
+	0x55, 0xFE,           //   Unit Exponent (FEh) (X10^-2)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x27, 0x9F, 0x8C, 0, 0, //   Logical Maximum (35999)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x47, 0x9F, 0x8C, 0, 0, //   Physical Maximum (35999)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x72,           //  Usage (Period)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x27, 0xFF, 0x7F, 0, 0, //   Logical Maximum (32K)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x47, 0xFF, 0x7F, 0, 0, //   Physical Maximum (32K)
+	0x66, 0x03, 0x10,     //   Unit (1003h) (English Linear, Seconds)
+	0x55, 0xFD,           //   Unit Exponent (FDh) (X10^-3 ==> Milisecond)
+	0x75, 0x20,           //   Report Size (16)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x66, 0x00, 0x00,     //  Unit (0)
+	0x55, 0x00,           //  Unit Exponent (0)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x0B OUTPUT: Block Free (BLOCKFREEREP, 23 bytes) ── */
-      0x09, 0x90,
-      0xA1, 0x02,
-        0x85, 0x0B,
-        0x09, 0x22,
-        0x15, 0x01,
-        0x25, FFB_MAX_EFFECTS,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-      0xC0,
+  // SetConstantForceReport
+  0x09, 0x73,           //Usage (Set Constant Force Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x05,           // Report ID 5
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x70,           //  Usage (Magnitude)
+	0x16, 0xF0, 0xD8,     //   Logical Minimum (-10000)
+	0x26, 0x10, 0x27,     //   Logical Maximum (10000)
+	0x36, 0xF0, 0xD8,     //   Physical Minimum (-10000)
+	0x46, 0x10, 0x27,     //   Physical Maximum (10000)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Reports 0x0C+0x0D OUTPUT: Device Control + Device Gain (59 bytes) ─
-       * Device Control: 8×1-bit Variable bit flags (OpenFFBoard style)         */
-      0x09, 0x95,
-      0xA1, 0x02,
-        0x85, 0x0C,
-        0x09, 0x96,
-        0xA1, 0x02,
-          0x09, 0x97,  /* DC Enable Actuators                                 */
-          0x09, 0x98,  /* DC Disable Actuators                                */
-          0x09, 0x99,  /* DC Stop All Effects                                 */
-          0x09, 0x9A,  /* DC Device Reset                                     */
-          0x09, 0x9B,  /* DC Device Pause                                     */
-          0x09, 0x9C,  /* DC Device Continue                                  */
-          0x15, 0x01,  /* Logical Minimum (1)                                 */
-          0x25, 0x06,  /* Logical Maximum (6)                                 */
-          0x75, 0x01,  /* Report Size (1)                                     */
-          0x95, 0x08,  /* Report Count (8)                                    */
-          0x91, 0x02,  /* Output (Variable)                                   */
-        0xC0,
-      0xC0,
-      0x09, 0x7D,      /* Device Gain Report                                  */
-      0xA1, 0x02,
-        0x85, 0x0D,
-        0x09, 0x7E,
-        0x15, 0x00,
-        0x26, 0xFF, 0x00,
-        0x35, 0x00,
-        0x46, 0x10, 0x27,
-        0x75, 0x08,
-        0x95, 0x01,
-        0x91, 0x02,
-      0xC0,
+  // SetRampForceReport
+  0x09, 0x74,           //Usage (Set Ramp Force Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x06,           // Report ID 6
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x75,           //  Usage (Ramp Start)
+	0x09, 0x76,           //  Usage (Ramp End)
+	0x16, 0xF0, 0xD8,     //   Logical Minimum (-10000)
+	0x26, 0x10, 0x27,     //   Logical Maximum (10000)
+	0x36, 0xF0, 0xD8,     //   Physical Minimum (-10000)
+	0x46, 0x10, 0x27,     //   Physical Maximum (10000)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x02,           //   Report Count (2)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x11 FEATURE: Create New Effect (NEWEFREP, 72 bytes) ── */
-      0x09, 0xAB,
-      0xA1, 0x02,
-        0x85, 0x11,
-        0x09, 0x25,
-        0xA1, 0x02,
-          0x09, 0x26,  0x09, 0x27,  0x09, 0x30,  0x09, 0x31,
-          0x09, 0x32,  0x09, 0x33,  0x09, 0x34,  0x09, 0x40,
-          0x09, 0x41,  0x09, 0x42,  0x09, 0x43,
-          0x25, 0x0B,
-          0x15, 0x01,
-          0x35, 0x01,
-          0x45, 0x0B,
-          0x75, 0x08,
-          0x95, 0x01,
-          0xB1, 0x00,
-        0xC0,
-        0x05, 0x01,    /* Usage Page (Generic Desktop)                        */
-        0x09, 0x3B,    /* Byte Count                                          */
-        0x15, 0x00,
-        0x26, 0xFF, 0x01,
-        0x35, 0x00,
-        0x46, 0xFF, 0x01,
-        0x75, 0x0A,
-        0x95, 0x01,
-        0xB1, 0x02,
-        0x75, 0x06,
-        0xB1, 0x01,
-      0xC0,
+  // CustomForceDataReport
+  0x09, 0x68,           //Usage (Custom Force Data Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x07,           // Report ID 7
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x6C,           //  Usage (Custom Force Data Offset)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x26, 0x10, 0x27,     //   Logical Maximum (10000)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x46, 0x10, 0x27,     //   Physical Maximum (10000)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x69,           //  Usage (Custom Force Data)
+	0x15, 0x81,           //   Logical Minimum (-127)
+	0x25, 0x7F,           //   Logical Maximum (127)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x46, 0xFF, 0x00,     //   Physical Maximum (255)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x0C,           //   Report Count (12)
+	0x92, 0x02, 0x01,     //   Output (Variable, Buffered)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x12 FEATURE: Block Load (BLOCKLOADREP, 72 bytes) ── */
-      0x05, 0x0F,
-      0x09, 0x89,
-      0xA1, 0x02,
-        0x85, 0x12,
-        0x09, 0x22,
-        0x25, FFB_MAX_EFFECTS,  /* Logical Max before Min — matches OpenFFBoard */
-        0x15, 0x01,
-        0x35, 0x01,
-        0x45, FFB_MAX_EFFECTS,
-        0x75, 0x08,
-        0x95, 0x01,
-        0xB1, 0x02,
-        0x09, 0x8B,
-        0xA1, 0x02,
-          0x09, 0x8C,  0x09, 0x8D,  0x09, 0x8E,
-          0x15, 0x01,
-          0x25, 0x03,
-          0x35, 0x01,
-          0x45, 0x03,
-          0x75, 0x08,
-          0x95, 0x01,
-          0xB1, 0x00,
-        0xC0,
-        0x09, 0xAC,
-        0x15, 0x00,
-        0x27, 0xFF, 0xFF, 0x00, 0x00,
-        0x35, 0x00,
-        0x47, 0xFF, 0xFF, 0x00, 0x00,
-        0x75, 0x10,
-        0x95, 0x01,
-        0xB1, 0x00,
-      0xC0,
+  // DownloadForceSample
+  0x09, 0x66,           //Usage (Download Force Sample)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x08,           //Report ID 8
+	0x05, 0x01,           //  Usage Page (Generic Desktop)
+	0x09, 0x30,           //    Usage (X)
+	0x09, 0x31,           //    Usage (Y)
+	0x15, 0x81,           //     Logical Minimum (-127)
+	0x25, 0x7F,           //     Logical Maximum (127)
+	0x35, 0x00,           //     Physical Minimum (0)
+	0x46, 0xFF, 0x00,     //     Physical Maximum (255)
+	0x75, 0x08,           //     Report Size (8)
+	0x95, 0x01,           //     Report Count (2)
+	0x91, 0x02,           //     Output (Data,Var,Abs)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      /* ── Report 0x13 FEATURE: PID Pool (POOLREP, 67 bytes) ── */
-      0x09, 0x7F,
-      0xA1, 0x02,
-        0x85, 0x13,
-        0x09, 0x80,
-        0x75, 0x10,
-        0x95, 0x01,
-        0x15, 0x00,
-        0x35, 0x00,
-        0x27, 0xFF, 0xFF, 0x00, 0x00,
-        0x47, 0xFF, 0xFF, 0x00, 0x00,
-        0xB1, 0x02,
-        0x09, 0x83,
-        0x26, 0xFF, 0x00,
-        0x46, 0xFF, 0x00,
-        0x75, 0x08,
-        0x95, 0x01,
-        0xB1, 0x02,
-        0x09, 0xA9,    /* Device Managed Pool                                 */
-        0x09, 0xAA,    /* Shared Parameter Blocks                             */
-        0x75, 0x01,
-        0x95, 0x02,
-        0x15, 0x00,
-        0x25, 0x01,
-        0x35, 0x00,
-        0x45, 0x01,
-        0xB1, 0x02,
-        0x75, 0x06,
-        0x95, 0x01,
-        0xB1, 0x03,
-      0xC0,
+  // EffectOperationReport
+  0x05, 0x0F,           //Usage Page (Physical Interface)
+  0x09, 0x77,           //Usage (Effect Operation Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x0A,          //Report ID 10
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x78,           //  Usage (Effect Operation)
+	0xA1, 0x02,           //  Collection Datalink (Logical)
+	  0x09, 0x79,           //    Usage (Op Effect Start)
+	  0x09, 0x7A,           //    Usage (Op Effect Start Solo)
+	  0x09, 0x7B,           //    Usage (Op Effect Stop)
+	  0x15, 0x01,           //     Logical Minimum (1)
+	  0x25, 0x03,           //     Logical Maximum (3)
+	  0x75, 0x08,           //     Report Size (8)
+	  0x95, 0x01,           //     Report Count (1)
+	  0x91, 0x00,           //     Output (Data)
+	0xC0,                 //  End Collection Datalink (Logical)
+	0x09, 0x7C,           //  Usage (Loop Count)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x26, 0xFF, 0x00,     //   Logical Maximum (255)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x46, 0xFF, 0x00,     //   Physical Maximum (255)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-    0xC0,              /* End Collection (TLC1 Physical Interface Device + PID) */
+  // PIDBlockFreeReport
+  0x09, 0x90,           //Usage (PID Block Free Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x0B,           // Report ID 11
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
+  //PIDDeviceControl
+  0x09, 0x96,           //Usage (PID Device Control)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x0C,           // Report ID 12
+	0x09, 0x97,           //  Usage (DC Enable Actuators)
+	0x09, 0x98,           //  Usage (DC Disable Actuators)
+	0x09, 0x99,           //  Usage (DC Stop All Effects)
+	0x09, 0x9A,           //  Usage (DC Device Reset)
+	0x09, 0x9B,           //  Usage (DC Device Pause)
+	0x09, 0x9C,           //  Usage (DC Device Continue)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x06,           //   Logical Maximum (6)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x00,           //   Output (Data)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-    /* ═══════════════════════════════════════════════════════════════════════
-     * TLC2 — Vendor 0xFF00  (UP:FF00 U:0001)  53 bytes
-     * ═══════════════════════════════════════════════════════════════════════ */
-    0x06, 0x00, 0xFF,  /* Usage Page (Vendor Defined 0xFF00)                  */
-    0x09, 0x01,        /* Usage (Vendor 1)                                    */
-    0xA1, 0x01,        /* Collection (Application)                            */
+  // DeviceGainReport
+  0x09, 0x7D,           //Usage (Device Gain Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x0D,           //Report ID 13
+	0x09, 0x7E,           //  Usage (Device Gain)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x26, 0xFF, 0x00,     //   Logical Maximum (255)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x46, 0x10, 0x27,     //   Physical Maximum (10000)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      0x85, HID_REPORT_ID_TELEMETRY,
-      0x09, 0x02,
-      0x15, 0x00,
-      0x26, 0xFF, 0x00,
-      0x75, 0x08,
-      0x95, HID_TELEMETRY_PAYLOAD_SIZE,
-      0x81, 0x02,
+  //SetCustomForceReport
+  0x09, 0x6B,           //Usage (Set Custom Force Report)
+  0xA1, 0x02,           //Collection Datalink (Logical)
+	0x85, 0x0E,           // Report ID 14
+	0x09, 0x22,           //  Usage (Effect Block Index)
+	0x15, 0x01,           //   Logical Minimum (1)
+	0x25, 0x28,           //   Logical Maximum (40)
+	0x35, 0x01,           //   Physical Minimum (1)
+	0x45, 0x28,           //   Physical Maximum (40)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x6D,           //  Usage (Sample Count)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x26, 0xFF, 0x00,     //   Logical Maximum (255)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x46, 0xFF, 0x00,     //   Physical Maximum (255)
+	0x75, 0x08,           //   Report Size (8)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x09, 0x51,           //  Usage (Sample Period)
+	0x66, 0x03, 0x10,     //   Unit 4099
+	0x55, 0xFD,           //   Unit (Exponent 253)
+	0x15, 0x00,           //   Logical Minimum (0)
+	0x26, 0xFF, 0x7F,     //   Logical Maximum (32767)
+	0x35, 0x00,           //   Physical Minimum (0)
+	0x46, 0xFF, 0x7F,     //   Physical Maximum (32767)
+	0x75, 0x10,           //   Report Size (16)
+	0x95, 0x01,           //   Report Count (1)
+	0x91, 0x02,           //   Output (Data,Var,Abs)
+	0x55, 0x00,           //   Unit (Exponent 0)
+	0x66, 0x00, 0x00,     //   Unit 0
+  0xC0,                 //End Collection Datalink (Logical) (OK)
 
-      0x85, HID_REPORT_ID_CONFIG_RESP,
-      0x09, 0x04,
-      0x15, 0x00,
-      0x26, 0xFF, 0x00,
-      0x75, 0x08,
-      0x95, HID_CONFIG_RESP_PAYLOAD_SIZE,
-      0x81, 0x02,
+  //=========================================FeatureReport======================================//
 
-      0x85, HID_REPORT_ID_COMMAND,
-      0x09, 0x03,
-      0x15, 0x00,
-      0x26, 0xFF, 0x00,
-      0x75, 0x08,
-      0x95, HID_COMMAND_PAYLOAD_SIZE,
-      0xB1, 0x02,
+  //CreateNewEffectReport
+  0x09, 0xAB, // USAGE (Create New Effect Report)
+  0xA1, 0x02, // COLLECTION (Logical)
+	0x85, 0x07, // REPORT_ID (07) -- 7 avoids conflict with Output 0x05/0x06
+	0x09, 0x25, // USAGE (Effect Type)
+	0xA1, 0x02, // COLLECTION (Logical)
+	  0x09, 0x26, // USAGE (26)
+	  0x09, 0x27, // USAGE (27)
+	  0x09, 0x30, // USAGE (30)
+	  0x09, 0x31, // USAGE (31)
+	  0x09, 0x32, // USAGE (32)
+	  0x09, 0x33, // USAGE (33)
+	  0x09, 0x34, // USAGE (34)
+	  0x09, 0x40, // USAGE (40)
+	  0x09, 0x41, // USAGE (41)
+	  0x09, 0x42, // USAGE (42)
+	  0x09, 0x43, // USAGE (43)
+	  0x09, 0x28, // USAGE (28)
+	  0x25, 0x0C, // LOGICAL_MAXIMUM (0C)
+	  0x15, 0x01, // LOGICAL_MINIMUM (01)
+	  0x35, 0x01, // PHYSICAL_MINIMUM (01)
+	  0x45, 0x0C, // PHYSICAL_MAXIMUM (0C)
+	  0x75, 0x08, // REPORT_SIZE (08)
+	  0x95, 0x01, // REPORT_COUNT (01)
+	  0xB1, 0x00, // FEATURE (Data)
+	0xC0, // END COLLECTION ()
+	0x05, 0x01, // USAGE_PAGE (Generic Desktop)
+	0x09, 0x3B, // USAGE (Byte Count)
+	0x15, 0x00, // LOGICAL_MINIMUM (00)
+	0x26, 0xFF, 0x01, // LOGICAL_MAXIMUM (511)
+	0x35, 0x00, // PHYSICAL_MINIMUM (00)
+	0x46, 0xFF, 0x01, // PHYSICAL_MAXIMUM (511)
+	0x75, 0x0A, // REPORT_SIZE (0A)
+	0x95, 0x01, // REPORT_COUNT (01)
+	0xB1, 0x02, // FEATURE (Data,Var,Abs)
+	0x75, 0x06, // REPORT_SIZE (06)
+	0xB1, 0x01, // FEATURE (Constant,Ary,Abs)
+  0xC0, // END COLLECTION ()
 
-    0xC0,              /* End Collection (TLC3 Vendor)                        */
+  // PIDBlockLoadReport
+  0x05, 0x0F, // USAGE_PAGE (Physical Interface)
+  0x09, 0x89, // USAGE (PID Block Load Report)
+  0xA1, 0x02, // COLLECTION (Logical)
+	0x85, 0x08, // REPORT_ID (08)
+	0x09, 0x22, // USAGE (Effect Block Index)
+	0x25, 0x28, // LOGICAL_MAXIMUM (28)
+	0x15, 0x01, // LOGICAL_MINIMUM (01)
+	0x35, 0x01, // PHYSICAL_MINIMUM (01)
+	0x45, 0x28, // PHYSICAL_MAXIMUM (28)
+	0x75, 0x08, // REPORT_SIZE (08)
+	0x95, 0x01, // REPORT_COUNT (01)
+	0xB1, 0x02, // FEATURE (Data,Var,Abs)
+	0x09, 0x8B, // USAGE (Block Load Status)
+	0xA1, 0x02, // COLLECTION (Logical)
+	  0x09, 0x8C, // USAGE (Block Load Success)
+	  0x09, 0x8D, // USAGE (Block Load Full)
+	  0x09, 0x8E, // USAGE (Block Load Error)
+	  0x25, 0x03, // LOGICAL_MAXIMUM (03)
+	  0x15, 0x01, // LOGICAL_MINIMUM (01)
+	  0x35, 0x01, // PHYSICAL_MINIMUM (01)
+	  0x45, 0x03, // PHYSICAL_MAXIMUM (03)
+	  0x75, 0x08, // REPORT_SIZE (08)
+	  0x95, 0x01, // REPORT_COUNT (01)
+	  0xB1, 0x00, // FEATURE (Data)
+	0xC0, // END COLLECTION ()
+	0x09, 0xAC, // USAGE (RAM Pool Available)
+	0x15, 0x00, // LOGICAL_MINIMUM (00)
+	0x27, 0xFF, 0xFF, 0x00, 0x00, // LOGICAL_MAXIMUM (00 00 FF FF)
+	0x35, 0x00, // PHYSICAL_MINIMUM (00)
+	0x47, 0xFF, 0xFF, 0x00, 0x00, // PHYSICAL_MAXIMUM (00 00 FF FF)
+	0x75, 0x10, // REPORT_SIZE (10)
+	0x95, 0x01, // REPORT_COUNT (01)
+	0xB1, 0x00, // FEATURE (Data)
+  0xC0, // END COLLECTION ()
+
+  // PIDPoolReport
+  0x09, 0x7F, // USAGE (PID Pool Report)
+  0xA1, 0x02, // COLLECTION (Logical)
+	0x85, 0x09, // REPORT_ID (09)
+	0x09, 0x80, // USAGE (RAM Pool Size)
+	0x75, 0x10, // REPORT_SIZE (10)
+	0x95, 0x01, // REPORT_COUNT (01)
+	0x15, 0x00, // LOGICAL_MINIMUM (00)
+	0x35, 0x00, // PHYSICAL_MINIMUM (00)
+	0x27, 0xFF, 0xFF, 0x00, 0x00, // LOGICAL_MAXIMUM (00 00 FF FF)
+	0x47, 0xFF, 0xFF, 0x00, 0x00, // PHYSICAL_MAXIMUM (00 00 FF FF)
+	0xB1, 0x02, // FEATURE (Data,Var,Abs)
+	0x09, 0x83, // USAGE (Simultaneous Effects Max)
+	0x26, 0xFF, 0x00, // LOGICAL_MAXIMUM (00 FF)
+	0x46, 0xFF, 0x00, // PHYSICAL_MAXIMUM (00 FF)
+	0x75, 0x08, // REPORT_SIZE (08)
+	0x95, 0x01, // REPORT_COUNT (01)
+	0xB1, 0x02, // FEATURE (Data,Var,Abs)
+	0x09, 0xA9, // USAGE (Device Managed Pool)
+	0x09, 0xAA, // USAGE (Shared Parameter Blocks)
+	0x75, 0x01, // REPORT_SIZE (01)
+	0x95, 0x02, // REPORT_COUNT (02)
+	0x15, 0x00, // LOGICAL_MINIMUM (00)
+	0x25, 0x01, // LOGICAL_MAXIMUM (01)
+	0x35, 0x00, // PHYSICAL_MINIMUM (00)
+	0x45, 0x01, // PHYSICAL_MAXIMUM (01)
+	0xB1, 0x02, // FEATURE (Data,Var,Abs)
+	0x75, 0x06, // REPORT_SIZE (06)
+	0x95, 0x01, // REPORT_COUNT (01)
+	0xB1, 0x03, // FEATURE ( Cnst,Var,Abs)
+  0xC0, // END COLLECTION () PIDPool
+
+0xC0,              /* End Collection (TLC1 — Joystick Application)           */
+
+  /* ═══ TLC2 — Vendor 0xFF00 (UP:FF00 U:0001) — ODrive telemetry/config ═══ */
+  0x06, 0x00, 0xFF,  /* Usage Page (Vendor Defined 0xFF00)                    */
+  0x09, 0x01,        /* Usage (Vendor 1)                                      */
+  0xA1, 0x01,        /* Collection (Application)                              */
+
+    0x85, 0x20,      /* Report ID (0x20) — Telemetry Input (52 bytes)         */
+    0x09, 0x02,
+    0x15, 0x00,
+    0x26, 0xFF, 0x00,
+    0x75, 0x08,
+    0x95, 0x34,      /* 52 bytes                                              */
+    0x81, 0x02,
+
+    0x85, 0x22,      /* Report ID (0x22) — Config Response Input (6 bytes)    */
+    0x09, 0x04,
+    0x15, 0x00,
+    0x26, 0xFF, 0x00,
+    0x75, 0x08,
+    0x95, 0x06,
+    0x81, 0x02,
+
+    0x85, 0x21,      /* Report ID (0x21) — Command Feature (8 bytes)          */
+    0x09, 0x03,
+    0x15, 0x00,
+    0x26, 0xFF, 0x00,
+    0x75, 0x08,
+    0x95, 0x08,
+    0xB1, 0x02,
+
+  0xC0,              /* End Collection (TLC2 — Vendor)                        */
 };
 
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
