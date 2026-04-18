@@ -213,6 +213,27 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
         break;
     }
 
+    case FFB_REPORT_CREATE_NEW_EFFECT: {
+        /* DirectInput CreateEffect flow:
+         *   1. Host sends SET_REPORT 0x11 with requested effect type
+         *   2. Host reads GET_REPORT 0x12 (Block Load) to get the allocated index
+         *   3. If status == 1 (success), host proceeds with Set Effect etc.
+         * data[0] = effect type selector (1=Constant..11=Friction, matches FFB_ET_xxx) */
+        if (len < 1U) break;
+        uint8_t requested_type = data[0];
+        uint8_t idx = _alloc_slot(requested_type);
+        if (idx == 0U) {
+            s.last_load_index  = 0U;
+            s.last_load_status = 2U; /* full */
+        } else {
+            s.effects[idx - 1U].type = requested_type;
+            s.effects[idx - 1U].active = false;
+            s.last_load_index  = idx;
+            s.last_load_status = 1U; /* success */
+        }
+        break;
+    }
+
     default:
         break;
     }

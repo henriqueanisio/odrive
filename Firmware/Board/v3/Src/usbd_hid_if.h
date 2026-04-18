@@ -82,7 +82,7 @@ typedef struct __attribute__((packed)) {
 } HID_CommandPayload_t;             /* 8 bytes */
 
 /* ── Config response payload (6 bytes) ───────────────────────────────────────
- *   Full report sent as [0x04 | uint16 param_id | float value].
+ *   Full report sent as [0x22 | uint16 param_id | float value].
  * ─────────────────────────────────────────────────────────────────────────── */
 typedef struct __attribute__((packed)) {
     uint16_t param_id;
@@ -95,10 +95,10 @@ typedef struct __attribute__((packed)) {
  *   Send int16 axis (Report 0x01) — keeps joy.cpl working.
  *
  * HID_ODrive_SendTelemetry()
- *   Send full telemetry (Report 0x02) — call every ~10 ms from task.
+ *   Send full telemetry (Report 0x20) — call every ~10 ms from task.
  *
  * HID_ODrive_SendConfigResponse()
- *   Send a GET_CONFIG reply (Report 0x04) — called from protocol_dispatch.
+ *   Send a GET_CONFIG reply (Report 0x22) — called from protocol_dispatch.
  *
  * HID_ODrive_ProcessCommand()
  *   Weak default (no-op) defined in usbd_hid_if.c.
