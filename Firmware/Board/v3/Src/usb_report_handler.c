@@ -26,6 +26,7 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
       USBD_CtlSendData(pdev, (uint8_t *)&report, sizeof(PID_PoolFeatureReport));
       return TRUE;
     }
+    
     case PID_BLOCK_LOAD_REPORT_ID: {
       PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
       USBD_CtlSendData(pdev, (uint8_t *)&data, sizeof(PID_BlockLoadReport));
