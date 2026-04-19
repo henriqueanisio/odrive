@@ -75,7 +75,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
         HID_LOGICAL_MAXIMUM1 (40),
         HID_PHYSICAL_MINIMUM1 (1),
         HID_PHYSICAL_MAXIMUM1 (40),
-        HID_REPORT_SIZE (8),
+        HID_REPORT_SIZE (7),
         HID_REPORT_COUNT (1),
         HID_INPUT (DATA, VARIABLE, ABSOLUTE),
       HID_END_COLLECTION (LOGICAL),
@@ -163,7 +163,9 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
           HID_OUTPUT (DATA, VARIABLE, ABSOLUTE),
         HID_END_COLLECTION (LOGICAL),
 
-        HID_REPORT_COUNT (7), // padding
+
+        HID_REPORT_SIZE (1)
+        HID_REPORT_COUNT (7)
         HID_OUTPUT(CONSTANT, VARIABLE, ABSOLUTE),
 
       HID_END_COLLECTION (LOGICAL),
