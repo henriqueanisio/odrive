@@ -34,7 +34,7 @@
 #define HID_HEAD(tag, type, size) (((tag)<<4) | _CAT2(HID_TYPE_, type) | (((size) < 4 ? (size) : 3) & 0x3))
 
 #define HID_DATA0(x)
-#define HID_DATA1(x) , (x)
+#define HID_DATA1(x) , ((x) & 0xff)
 
 #define HID_ENDIAN_LITTLE 1
 #define HID_ENDIAN_BIG 2
