@@ -476,15 +476,33 @@ static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
 static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-    USBD_HID_HandleTypeDef     *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
+    USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
 
-  ((USBD_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf, USBD_HID_OUTREPORT_BUF_SIZE);
+    uint8_t rid = hhid->Report_buf[0];
+    uint16_t len = pdev->ep_out[epnum].xfer_count;
 
-  USBD_LL_PrepareReceive(pdev, HID_EPOUT_ADDR, hhid->Report_buf,
-                         USBD_HID_OUTREPORT_BUF_SIZE);
+    telemetry.ffb_last_rid = rid;
+    telemetry.ffb_len = (len > 0) ? (len - 1) : 0;
 
+    memset(telemetry.ffb_data, 0, sizeof(telemetry.ffb_data));
 
-  return USBD_OK;
+    if (len > 1) {
+        uint8_t copy_len = len - 1;
+        if (copy_len > sizeof(telemetry.ffb_data)) {
+            copy_len = sizeof(telemetry.ffb_data);
+        }
+
+        memcpy(telemetry.ffb_data, &hhid->Report_buf[1], copy_len);
+    }
+
+    telemetry.ffb_rx_count++;  // 👈 importante pro monitor
+
+    ((USBD_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf, len);
+
+    USBD_LL_PrepareReceive(pdev, HID_EPOUT_ADDR, hhid->Report_buf,
+                           USBD_HID_OUTREPORT_BUF_SIZE);
+
+    return USBD_OK;
 }
 
 uint8_t  USBD_HID_RegisterInterface(USBD_HandleTypeDef   *pdev,

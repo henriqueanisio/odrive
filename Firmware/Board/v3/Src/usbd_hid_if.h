@@ -66,12 +66,19 @@ typedef struct __attribute__((packed)) {
     uint32_t axis_error;
     uint32_t motor_error;
     uint32_t encoder_error;
-    uint8_t  mag_agc;       /* AS5047P: 0=strong field, 255=weak field, ~128=optimal */
-    uint8_t  mag_flags;     /* bit0=COMP_H (too close), bit1=COMP_L (too far)        */
-    uint16_t ffb_rx_count;  /* increments each time an FFB Output report arrives     */
-    uint8_t  ffb_last_rid;  /* report ID of the last received FFB Output report      */
-    uint8_t  ffb_actv;      /* bit0=actuators_enabled, bit1=any_effect_active        */
-} HID_TelemetryPayload_t;          /* 52 bytes */
+    uint8_t  mag_agc;
+    uint8_t  mag_flags;
+
+    uint16_t ffb_rx_count;
+    uint8_t  ffb_last_rid;
+
+    uint8_t  ffb_len;        // 👈 NOVO (1 byte)
+
+    uint8_t  ffb_data[4];    // 👈 NOVO (4 bytes)
+
+    uint8_t  ffb_actv;
+
+} HID_TelemetryPayload_t;
 
 /* ── Command feature payload (8 bytes) ───────────────────────────────────────
  *   See protocol.h for cmd_id and param_id definitions.
