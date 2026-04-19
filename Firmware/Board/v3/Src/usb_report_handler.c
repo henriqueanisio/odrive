@@ -1,7 +1,7 @@
 #include "config.h"
 
 #include "usb_reports.h"
-#include "usbd_customhid.h"
+#include "usbd_hid.h"
 #include "usbd_def.h"
 #include "usbd_ioreq.h"
 
