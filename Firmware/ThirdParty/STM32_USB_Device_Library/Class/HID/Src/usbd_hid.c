@@ -29,7 +29,7 @@ static uint8_t *USBD_HID_GetOtherSpeedCfgDesc(uint16_t *length);
 static uint8_t *USBD_HID_GetDeviceQualifierDesc(uint16_t *length);
 
 /* Forward declaration — defined in usbd_hid_if.c (weak) or application */
-extern void HID_ODrive_ProcessCommand(const void *cmd);
+// extern void HID_ODrive_ProcessCommand(const void *cmd);
 
 extern HID_TelemetryPayload_t telemetry;
 
