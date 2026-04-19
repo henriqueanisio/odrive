@@ -30,8 +30,6 @@ static uint8_t *USBD_HID_GetDeviceQualifierDesc(uint16_t *length);
 /* Forward declaration — defined in usbd_hid_if.c (weak) or application */
 extern void HID_ODrive_ProcessCommand(const void *cmd);
 
-extern HID_TelemetryPayload_t telemetry;
-
 USBD_ClassTypeDef USBD_HID = {
     USBD_HID_Init,
     USBD_HID_DeInit,
@@ -478,6 +476,7 @@ static uint8_t USBD_HID_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
 static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
+    HID_TelemetryPayload_t telemetry;
     USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
 
     uint8_t rid = hhid->Report_buf[0];
