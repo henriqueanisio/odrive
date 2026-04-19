@@ -61,6 +61,7 @@
 #include <string.h>
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal.h"
+#include "hid_descriptor.h"
 
 /* USER CODE BEGIN INCLUDE */
 
@@ -98,13 +99,15 @@
 /*---------- -----------*/
 #define USBD_MAX_STR_DESC_SIZ     512
 /*---------- -----------*/
-#define USBD_SUPPORT_USER_STRING_DESC     1
-/*---------- -----------*/
 #define USBD_DEBUG_LEVEL     0
 /*---------- -----------*/
-#define USBD_LPM_ENABLED     0
-/*---------- -----------*/
 #define USBD_SELF_POWERED     1
+/*---------- -----------*/
+#define USBD_CUSTOMHID_OUTREPORT_BUF_SIZE     64
+/*---------- -----------*/
+#define USBD_HID_REPORT_DESC_SIZE     sizeof(HID_ReportDesc_FS)
+/*---------- -----------*/
+#define HID_FS_BINTERVAL     0x5
 
 /****************************************/
 /* #define for FS and HS identification */
