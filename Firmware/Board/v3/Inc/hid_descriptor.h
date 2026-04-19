@@ -164,8 +164,8 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
         HID_END_COLLECTION (LOGICAL),
 
 
-        HID_REPORT_SIZE (1)
-        HID_REPORT_COUNT (7)
+        HID_REPORT_SIZE (1),
+        HID_REPORT_COUNT (7),
         HID_OUTPUT(CONSTANT, VARIABLE, ABSOLUTE),
 
       HID_END_COLLECTION (LOGICAL),
