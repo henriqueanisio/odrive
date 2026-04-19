@@ -58,8 +58,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
         HID_REPORT_COUNT (5),
         HID_INPUT (DATA, VARIABLE, ABSOLUTE),
         
-        HID_REPORT_SIZE (3),
-        HID_REPORT_COUNT (1),
+        HID_REPORT_COUNT (3),
         HID_INPUT (CONSTANT, VARIABLE, ABSOLUTE),
 
         HID_USAGE (EFFECT_PLAYING),
@@ -67,7 +66,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
         HID_LOGICAL_MAXIMUM1 (1),
         HID_PHYSICAL_MINIMUM1 (0),
         HID_PHYSICAL_MAXIMUM1 (1),
-        HID_REPORT_SIZE (8),
+        HID_REPORT_SIZE (1),
         HID_REPORT_COUNT (1),
         HID_INPUT (DATA, VARIABLE, ABSOLUTE),
         
@@ -76,7 +75,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
         HID_LOGICAL_MAXIMUM1 (40),
         HID_PHYSICAL_MINIMUM1 (1),
         HID_PHYSICAL_MAXIMUM1 (40),
-        HID_REPORT_SIZE (8),
+        HID_REPORT_SIZE (1),
         HID_REPORT_COUNT (1),
         HID_INPUT (DATA, VARIABLE, ABSOLUTE),
       HID_END_COLLECTION (LOGICAL),
@@ -149,7 +148,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
           HID_USAGE(STEERING),
           HID_LOGICAL_MINIMUM1 (0),
           HID_LOGICAL_MAXIMUM1 (1),
-          HID_REPORT_SIZE (8),
+          HID_REPORT_SIZE (1),
           HID_REPORT_COUNT (1),
           HID_OUTPUT(DATA, VARIABLE, ABSOLUTE),
         HID_END_COLLECTION (LOGICAL),
