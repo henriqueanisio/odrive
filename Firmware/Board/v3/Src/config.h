@@ -8,6 +8,19 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+/* ── FFB engine constants (used by ffb_engine.c / ffb_forces.c) ────────────── */
+#define MAX_EFFECTS       40
+#define MEMORY_POOL_SIZE  0x3fff
+#define DURATION_INF      0xffff
+#define FFB_DEAD_ZONE     0x00ff
+
+#ifndef TRUE
+#define TRUE  1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
 /* ── Parameter ID ranges ──────────────────────────────────────────────────────
  *   Motor      200–299
  *   Encoder    300–399

@@ -10,8 +10,11 @@
 
 #include "usbd_hid.h"
 #include "usbd_ctlreq.h"
-#include "ffb_pid.h"
+#include "usbd_def.h"
+#include "usb_report_handler.h"
 #include "hid_queue.h"
+#include <stdint.h>
+#include <string.h>
 
 static uint8_t USBD_HID_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t USBD_HID_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
