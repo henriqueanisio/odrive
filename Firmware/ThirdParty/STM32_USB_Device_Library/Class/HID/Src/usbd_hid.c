@@ -31,8 +31,6 @@ static uint8_t *USBD_HID_GetDeviceQualifierDesc(uint16_t *length);
 /* Forward declaration — defined in usbd_hid_if.c (weak) or application */
 // extern void HID_ODrive_ProcessCommand(const void *cmd);
 
-extern HID_TelemetryPayload_t telemetry;
-
 USBD_ClassTypeDef USBD_HID = {
     USBD_HID_Init,
     USBD_HID_DeInit,
@@ -481,27 +479,13 @@ static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
     USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
 
-    uint8_t rid = hhid->Report_buf[0];
+    // ⚠️ NÃO inventa tamanho — usa o buffer completo
     uint16_t len = USBD_HID_OUTREPORT_BUF_SIZE;
 
-    telemetry.ffb_last_rid = rid;
-    telemetry.ffb_len = (len > 0) ? (len - 1) : 0;
-
-    memset(telemetry.ffb_data, 0, sizeof(telemetry.ffb_data));
-
-    if (len > 1) {
-        uint8_t copy_len = len - 1;
-        if (copy_len > sizeof(telemetry.ffb_data)) {
-            copy_len = sizeof(telemetry.ffb_data);
-        }
-
-        memcpy(telemetry.ffb_data, &hhid->Report_buf[1], copy_len);
-    }
-
-    telemetry.ffb_rx_count++;  // 👈 importante pro monitor
-
+    // Encaminha para camada de aplicação (isso chama ffb_process_report)
     ((USBD_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf, len);
 
+    // Re-armar recepção
     USBD_LL_PrepareReceive(pdev, HID_EPOUT_ADDR, hhid->Report_buf,
                            USBD_HID_OUTREPORT_BUF_SIZE);
 
