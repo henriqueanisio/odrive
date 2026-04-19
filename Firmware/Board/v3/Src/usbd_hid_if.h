@@ -19,16 +19,16 @@ extern USBD_HID_ItfTypeDef USBD_HID_fops_FS;
  *   0x21 — Command   Feature (8 bytes)  Vendor 0xFF00   — host → device
  *   0x22 — CfgResp   Input   (6 bytes)  Vendor 0xFF00   — GET_CONFIG reply
  * ─────────────────────────────────────────────────────────────────────────── */
-#define HID_REPORT_ID_JOYSTICK    0x01U  /* 0x40 avoids global Report ID conflict with PID 0x01 */
-#define HID_REPORT_ID_TELEMETRY   0x20U  /* renamed: 0x02-0x13 reserved for FFB */
+#define HID_REPORT_ID_JOYSTICK    0x01U  /* Report ID 1 — shared with SetEffect OUT (different direction, OK) */
+#define HID_REPORT_ID_TELEMETRY   0x20U
 #define HID_REPORT_ID_COMMAND     0x21U
 #define HID_REPORT_ID_CONFIG_RESP 0x22U
 
-// /* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
-#define HID_JOYSTICK_PAYLOAD_SIZE   10U
-#define HID_TELEMETRY_PAYLOAD_SIZE 0
-#define HID_COMMAND_PAYLOAD_SIZE    0
-#define HID_CONFIG_RESP_PAYLOAD_SIZE 0
+/* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
+#define HID_JOYSTICK_PAYLOAD_SIZE    10U  /* steering(2)+accel(2)+brake(2)+buttons(4) */
+#define HID_TELEMETRY_PAYLOAD_SIZE   52U
+#define HID_COMMAND_PAYLOAD_SIZE      8U
+#define HID_CONFIG_RESP_PAYLOAD_SIZE  6U
 
 /* ── Telemetry input payload (46 bytes, little-endian packed) ────────────────
  *

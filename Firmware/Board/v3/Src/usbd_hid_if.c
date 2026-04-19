@@ -40,13 +40,22 @@ static int8_t HID_OutEvent_FS(uint8_t* pbuf, uint8_t n)
 
 
 /* ── HID_Joystick_Send ───────────────────────────────────────────────────── */
-uint8_t HID_Joystick_Send(int16_t value)
+/* Descriptor: steering(int16) + accelerator(int16) + brake(int16) + buttons(uint32)
+ * Only steering is used; accelerator/brake sent as 0 (neutral). */
+uint8_t HID_Joystick_Send(int16_t steering)
 {
     uint8_t report[1 + HID_JOYSTICK_PAYLOAD_SIZE];
-    report[0] = HID_REPORT_ID_JOYSTICK;
-    report[1] = 0;                          /* buttons byte — all released    */
-    report[2] = (uint8_t)(value & 0xFF);    /* X axis low byte                */
-    report[3] = (uint8_t)(value >> 8);      /* X axis high byte               */
+    report[0]  = HID_REPORT_ID_JOYSTICK;
+    report[1]  = (uint8_t)((uint16_t)steering & 0xFFU);
+    report[2]  = (uint8_t)((uint16_t)steering >> 8U);
+    report[3]  = 0x00U;  /* accelerator low  — neutral = 0 */
+    report[4]  = 0x00U;  /* accelerator high               */
+    report[5]  = 0x00U;  /* brake low        — neutral = 0 */
+    report[6]  = 0x00U;  /* brake high                     */
+    report[7]  = 0x00U;  /* buttons [7:0]                  */
+    report[8]  = 0x00U;  /* buttons [15:8]                 */
+    report[9]  = 0x00U;  /* buttons [23:16]                */
+    report[10] = 0x00U;  /* buttons [31:24]                */
     return hid_queue_push(report, sizeof(report));
 }
 

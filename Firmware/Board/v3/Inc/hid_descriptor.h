@@ -546,7 +546,41 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
         HID_FEATURE (CONSTANT, VARIABLE, ABSOLUTE),
       HID_END_COLLECTION(LOGICAL),
 
-  HID_END_COLLECTION(APPLICATION)    /*     END_COLLECTION	             */
+  HID_END_COLLECTION(APPLICATION),   /* End TLC1 Joystick+PID              */
+
+  /* ═══ TLC2 — Vendor 0xFF00 — ODrive telemetry / config ═══════════════════
+   * Report 0x20 IN  52 B  Telemetry (live data to GUI)
+   * Report 0x22 IN   6 B  Config Response
+   * Report 0x21 FEATURE 8 B  Command (host → device)                       */
+  HID_USAGE_PAGE2(2, 0xFF00),        /* Usage Page (Vendor 0xFF00)          */
+  HID_USAGE2(1, 0x01),               /* Usage (Vendor 1)                    */
+  HID_COLLECTION(APPLICATION),
+
+    HID_REPORT_ID(0x20),             /* Telemetry Input — 52 bytes          */
+    HID_USAGE2(1, 0x02),
+    HID_LOGICAL_MINIMUM1(0),
+    HID_LOGICAL_MAXIMUM2(0x00FF),
+    HID_REPORT_SIZE(8),
+    HID_REPORT_COUNT(52),
+    HID_INPUT(DATA, VARIABLE, ABSOLUTE),
+
+    HID_REPORT_ID(0x22),             /* Config Response Input — 6 bytes     */
+    HID_USAGE2(1, 0x04),
+    HID_LOGICAL_MINIMUM1(0),
+    HID_LOGICAL_MAXIMUM2(0x00FF),
+    HID_REPORT_SIZE(8),
+    HID_REPORT_COUNT(6),
+    HID_INPUT(DATA, VARIABLE, ABSOLUTE),
+
+    HID_REPORT_ID(0x21),             /* Command Feature — 8 bytes           */
+    HID_USAGE2(1, 0x03),
+    HID_LOGICAL_MINIMUM1(0),
+    HID_LOGICAL_MAXIMUM2(0x00FF),
+    HID_REPORT_SIZE(8),
+    HID_REPORT_COUNT(8),
+    HID_FEATURE(DATA, VARIABLE, ABSOLUTE),
+
+  HID_END_COLLECTION(APPLICATION)    /* End TLC2 Vendor                     */
 };
 
 #endif
