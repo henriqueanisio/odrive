@@ -1,7 +1,7 @@
 #include "config.h"
 
 #include "usb_reports.h"
-#include "usbd_hid.h"
+#include "usbd_customhid.h"
 #include "usbd_def.h"
 #include "usbd_ioreq.h"
 
@@ -26,7 +26,6 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
       USBD_CtlSendData(pdev, (uint8_t *)&report, sizeof(PID_PoolFeatureReport));
       return TRUE;
     }
-    
     case PID_BLOCK_LOAD_REPORT_ID: {
       PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
       USBD_CtlSendData(pdev, (uint8_t *)&data, sizeof(PID_BlockLoadReport));
@@ -39,15 +38,4 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
   return FALSE;
 }
 
-/* Counters incremented on every FFB Output report received from USB host (games). */
-volatile uint16_t g_ffb_usb_rx_count = 0;
-volatile uint8_t  g_ffb_usb_last_rid = 0;
-
-void HID_OutEvent(uint8_t *pbuf, uint8_t n)
-{
-    if (n >= 1U) {
-        g_ffb_usb_rx_count++;
-        g_ffb_usb_last_rid = pbuf[0];
-    }
-    FFB_OnUsbData(pbuf, n);
-}
+void HID_OutEvent(uint8_t *pbuf, uint8_t n) { FFB_OnUsbData(pbuf, n); }
