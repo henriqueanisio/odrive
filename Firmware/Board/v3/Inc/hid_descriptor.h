@@ -85,7 +85,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       HID_USAGE (SET_EFFECT_REPORT),
 
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID(1),
+        HID_REPORT_ID(3),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -163,7 +163,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       HID_USAGE_PAGE (PHYSICAL_DEVICE),
       HID_USAGE (SET_ENVELOPE_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (2),
+        HID_REPORT_ID (4),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -198,7 +198,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // SetConditionReport
       HID_USAGE (SET_CONDITION_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (3),
+        HID_REPORT_ID (5),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -244,7 +244,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // SetPeriodicReport
       HID_USAGE (SET_PERIODIC_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (4),
+        HID_REPORT_ID (6),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -302,7 +302,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // SetConstantForceReport
       HID_USAGE (SET_CONSTANT_FORCE_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (5),
+        HID_REPORT_ID (7),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -327,7 +327,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // SetRampForceReport
       HID_USAGE (SET_RAMP_FORCE_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (6),
+        HID_REPORT_ID (8),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -353,7 +353,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // EffectOperationReport
       HID_USAGE (EFFECT_OPERATION_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (10),
+        HID_REPORT_ID (12),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -388,7 +388,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // PIDBlockFreeReport
       HID_USAGE (PID_BLOCK_FREE_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (11),
+        HID_REPORT_ID (13),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -404,7 +404,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       //PIDDeviceControl
       HID_USAGE (PID_DEVICE_CONTROL),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (12),
+        HID_REPORT_ID (14),
 
         HID_USAGE (DC_ENABLE_ACTUATORS),
         HID_USAGE (DC_DISABLE_ACTUATORS),
@@ -423,7 +423,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // DeviceGainReport
       HID_USAGE (DEVICE_GAIN_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (13),
+        HID_REPORT_ID (15),
 
         HID_USAGE (DEVICE_GAIN),
         HID_LOGICAL_MINIMUM1 (0),
@@ -438,7 +438,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       // PIDCreateNewEffectReport
       HID_USAGE (CREATE_NEW_EFFECT_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (7),
+        HID_REPORT_ID (9),
 
         HID_USAGE (EFFECT_TYPE),
         HID_COLLECTION (LOGICAL),
@@ -477,7 +477,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       HID_USAGE_PAGE (PHYSICAL_DEVICE),
       HID_USAGE (PID_BLOCK_LOAD_REPORT),
       HID_COLLECTION (LOGICAL),
-        HID_REPORT_ID (8),
+        HID_REPORT_ID (10),
 
         HID_USAGE (EFFECT_BLOCK_INDEX),
         HID_LOGICAL_MINIMUM1 (1),
@@ -513,7 +513,7 @@ __ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unus
       HID_USAGE (PID_POOL_REPORT),
       HID_COLLECTION (LOGICAL),
 
-        HID_REPORT_ID (9),
+        HID_REPORT_ID (11),
 
         HID_USAGE (RAM_POOL_SIZE),
         HID_REPORT_SIZE (16),
