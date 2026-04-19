@@ -38,4 +38,15 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
   return FALSE;
 }
 
-void HID_OutEvent(uint8_t *pbuf, uint8_t n) { FFB_OnUsbData(pbuf, n); }
+/* Counters incremented on every FFB Output report received from USB host (games). */
+volatile uint16_t g_ffb_usb_rx_count = 0;
+volatile uint8_t  g_ffb_usb_last_rid = 0;
+
+void HID_OutEvent(uint8_t *pbuf, uint8_t n)
+{
+    if (n >= 1U) {
+        g_ffb_usb_rx_count++;
+        g_ffb_usb_last_rid = pbuf[0];
+    }
+    FFB_OnUsbData(pbuf, n);
+}

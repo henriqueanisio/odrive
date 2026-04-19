@@ -335,9 +335,16 @@ extern "C" void hid_send_telemetry(void)
     /* ── PID State (only on actuator enable/disable change) ── */
     if (s_pid_state_dirty) {
         s_pid_state_dirty = false;
-        uint8_t pid_report[2];
+        /* Byte 1 bit layout (per HID descriptor, PHYSICAL_DEVICE usage page):
+         *   bit0 = DEVICE_PAUSED, bit1 = ACTUATORS_ENABLED,
+         *   bit2 = ACTUATOR_POWER, bit3 = ACTUATOR_OVERRIDE_SWITCH,
+         *   bit4 = SAFETY_SWITCH, bits5-7 = constant padding
+         * When actuators are on: not paused (0), enabled (1), power (1), switches on (1,1)
+         * → 0b00011110 = 0x1E.  When off: all zero = 0x00.                       */
+        uint8_t pid_report[3];
         pid_report[0] = FFB_REPORT_PID_STATE;
-        pid_report[1] = s_pid_actuators_on ? 0x01U : 0x00U;
+        pid_report[1] = s_pid_actuators_on ? 0x1EU : 0x00U;
+        pid_report[2] = 0x00U;  /* effectPlaying=0, effectBlockIndex=0 */
         hid_queue_push(pid_report, sizeof(pid_report));
     }
 

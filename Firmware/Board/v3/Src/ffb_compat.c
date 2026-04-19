@@ -11,6 +11,7 @@
 #include "ffb_engine.h"
 #include "ffb_axis.h"
 #include "usb_reports.h"
+#include "usb_report_handler.h"
 #include "config.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
@@ -21,9 +22,7 @@
 extern volatile PIDStateReport g_state;
 extern volatile uint8_t        g_deviceGain;
 
-/* Diagnostic counters maintained locally */
-static uint16_t s_rx_count = 0;
-static uint8_t  s_last_rid = 0;
+/* Diagnostic counters: reads from usb_report_handler globals (real USB traffic). */
 
 /* ── ffb_init ────────────────────────────────────────────────────────────── */
 void ffb_init(void)
@@ -34,8 +33,8 @@ void ffb_init(void)
     g_state.effectPlaying      = 0;
     g_state.effectBlockIndex   = 0;
     g_deviceGain               = 255;
-    s_rx_count                 = 0;
-    s_last_rid                 = 0;
+    g_ffb_usb_rx_count         = 0;
+    g_ffb_usb_last_rid         = 0;
 }
 
 /* ── ffb_process_report ──────────────────────────────────────────────────── */
@@ -51,10 +50,8 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
         memcpy(&buf[1], data, len);
     }
 
-    s_last_rid = report_id;
-    s_rx_count++;
-
-    FFB_OnUsbData(buf, (uint8_t)(len + 1U));
+    /* Route through HID_OutEvent so global counters are updated */
+    HID_OutEvent(buf, (uint8_t)(len + 1U));
 }
 
 /* ── ffb_actuators_enabled ───────────────────────────────────────────────── */
@@ -112,8 +109,8 @@ uint8_t ffb_get_pool_report(uint8_t *buf, uint8_t buf_size)
 FFB_DiagStats_t ffb_get_diag_stats(void)
 {
     FFB_DiagStats_t d;
-    d.rx_count = s_rx_count;
-    d.last_rid = s_last_rid;
+    d.rx_count = g_ffb_usb_rx_count;
+    d.last_rid = g_ffb_usb_last_rid;
     d.actv     = (uint8_t)((g_state.actuatorsEnabled ? 0x01U : 0x00U) |
                             (g_state.effectPlaying    ? 0x02U : 0x00U));
     return d;
