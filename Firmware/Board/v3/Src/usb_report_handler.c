@@ -27,15 +27,8 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
       return TRUE;
     }
     case PID_BLOCK_LOAD_REPORT_ID: {
-      uint8_t buf[5];
-
-      buf[0] = PID_BLOCK_LOAD_REPORT_ID; // ID = 8
-      buf[1] = 1; // effect index (use fixo pra teste)
-      buf[2] = 1; // status = SUCCESS
-      buf[3] = 0xFF; // RAM low
-      buf[4] = 0xFF; // RAM high
-
-      USBD_CtlSendData(pdev, buf, 5);
+      PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
+      USBD_CtlSendData(pdev, (uint8_t *)&data, sizeof(PID_BlockLoadReport));
       return TRUE;
     }
     default:
