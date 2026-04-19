@@ -242,7 +242,7 @@ __ALIGN_BEGIN uint8_t USBD_FS_DeviceDesc[USB_LEN_DEV_DESC] __ALIGN_END =
   HIBYTE(USBD_VID),           /*idVendor*/
   LOBYTE(USBD_PID_FS),        /*idProduct*/
   HIBYTE(USBD_PID_FS),        /*idProduct*/
-  0x13,                       /*bcdDevice LSB: rel. 3.13 — fix 0x92 Buffered Bytes tag rejected by Windows HID parser */
+  0x20,                       /*bcdDevice LSB: rel. 3.20 — macro-based descriptor + Vendor TLC2 restored */
   0x03,                       /*bcdDevice MSB                                    */
   USBD_IDX_MFC_STR,           /*Index of manufacturer  string*/
   USBD_IDX_PRODUCT_STR,       /*Index of product string*/
