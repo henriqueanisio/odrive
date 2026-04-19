@@ -20,16 +20,24 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
 
   if (reportType == HID_REPORT_TYPE_FEATURE) {
     switch (reportId) {
-    case PID_POOL_FEATURE_REPORT_ID: {
-      PID_PoolFeatureReport report;
-      PIDPoolFeatureReport_Init(&report);
-      USBD_CtlSendData(pdev, (uint8_t *)&report, sizeof(PID_PoolFeatureReport));
-      return TRUE;
-    }
+      case PID_POOL_FEATURE_REPORT_ID: {
+        PID_PoolFeatureReport report;
+        PIDPoolFeatureReport_Init(&report);
+        USBD_CtlSendData(pdev, (uint8_t *)&report, sizeof(PID_PoolFeatureReport));
+        return TRUE;
+      }
+      
     case PID_BLOCK_LOAD_REPORT_ID: {
-      PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
-      USBD_CtlSendData(pdev, (uint8_t *)&data, sizeof(PID_BlockLoadReport));
-      return TRUE;
+        uint8_t buf[5];
+
+        buf[0] = PID_BLOCK_LOAD_REPORT_ID; // ID = 8
+        buf[1] = 1; // effect index (use fixo pra teste)
+        buf[2] = 1; // status = SUCCESS
+        buf[3] = 0xFF; // RAM low
+        buf[4] = 0xFF; // RAM high
+
+        USBD_CtlSendData(pdev, buf, 5);
+        return TRUE;
     }
     default:
       break;
