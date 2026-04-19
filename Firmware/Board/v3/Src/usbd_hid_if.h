@@ -19,16 +19,16 @@ extern USBD_HID_ItfTypeDef USBD_HID_fops_FS;
  *   0x21 — Command   Feature (8 bytes)  Vendor 0xFF00   — host → device
  *   0x22 — CfgResp   Input   (6 bytes)  Vendor 0xFF00   — GET_CONFIG reply
  * ─────────────────────────────────────────────────────────────────────────── */
-// #define HID_REPORT_ID_JOYSTICK    0x40U  /* 0x40 avoids global Report ID conflict with PID 0x01 */
-// #define HID_REPORT_ID_TELEMETRY   0x20U  /* renamed: 0x02-0x13 reserved for FFB */
-// #define HID_REPORT_ID_COMMAND     0x21U
-// #define HID_REPORT_ID_CONFIG_RESP 0x22U
+#define HID_REPORT_ID_JOYSTICK    0x01U  /* 0x40 avoids global Report ID conflict with PID 0x01 */
+#define HID_REPORT_ID_TELEMETRY   0x20U  /* renamed: 0x02-0x13 reserved for FFB */
+#define HID_REPORT_ID_COMMAND     0x21U
+#define HID_REPORT_ID_CONFIG_RESP 0x22U
 
 // /* ── Payload sizes (bytes after the report_id byte) ─────────────────────── */
-// #define HID_JOYSTICK_PAYLOAD_SIZE   3U
-// #define HID_TELEMETRY_PAYLOAD_SIZE 52U
-// #define HID_COMMAND_PAYLOAD_SIZE    8U
-// #define HID_CONFIG_RESP_PAYLOAD_SIZE 6U
+#define HID_JOYSTICK_PAYLOAD_SIZE   10U
+#define HID_TELEMETRY_PAYLOAD_SIZE 0
+#define HID_COMMAND_PAYLOAD_SIZE    0
+#define HID_CONFIG_RESP_PAYLOAD_SIZE 0
 
 /* ── Telemetry input payload (46 bytes, little-endian packed) ────────────────
  *
@@ -52,44 +52,44 @@ extern USBD_HID_ItfTypeDef USBD_HID_fops_FS;
  *   50       1    uint8   ffb_last_rid  report ID of last received FFB Output report
  *   51       1    uint8   ffb_actv      bit0=actuators_enabled, bit1=any_effect_active
  * ─────────────────────────────────────────────────────────────────────────── */
-// typedef struct __attribute__((packed)) {
-//     float    pos_estimate;
-//     float    vel_estimate;
-//     float    vbus_voltage;
-//     float    current_lim;
-//     float    input_pos;
-//     float    Iq_measured;
-//     float    phase_resistance;
-//     float    phase_inductance;
-//     uint8_t  current_state;
-//     uint8_t  flags;
-//     uint32_t axis_error;
-//     uint32_t motor_error;
-//     uint32_t encoder_error;
-//     uint8_t  mag_agc;       /* AS5047P: 0=strong field, 255=weak field, ~128=optimal */
-//     uint8_t  mag_flags;     /* bit0=COMP_H (too close), bit1=COMP_L (too far)        */
-//     uint16_t ffb_rx_count;  /* increments each time an FFB Output report arrives     */
-//     uint8_t  ffb_last_rid;  /* report ID of the last received FFB Output report      */
-//     uint8_t  ffb_actv;      /* bit0=actuators_enabled, bit1=any_effect_active        */
-// } HID_TelemetryPayload_t;          /* 52 bytes */
+typedef struct __attribute__((packed)) {
+    float    pos_estimate;
+    float    vel_estimate;
+    float    vbus_voltage;
+    float    current_lim;
+    float    input_pos;
+    float    Iq_measured;
+    float    phase_resistance;
+    float    phase_inductance;
+    uint8_t  current_state;
+    uint8_t  flags;
+    uint32_t axis_error;
+    uint32_t motor_error;
+    uint32_t encoder_error;
+    uint8_t  mag_agc;       /* AS5047P: 0=strong field, 255=weak field, ~128=optimal */
+    uint8_t  mag_flags;     /* bit0=COMP_H (too close), bit1=COMP_L (too far)        */
+    uint16_t ffb_rx_count;  /* increments each time an FFB Output report arrives     */
+    uint8_t  ffb_last_rid;  /* report ID of the last received FFB Output report      */
+    uint8_t  ffb_actv;      /* bit0=actuators_enabled, bit1=any_effect_active        */
+} HID_TelemetryPayload_t;          /* 52 bytes */
 
 /* ── Command feature payload (8 bytes) ───────────────────────────────────────
  *   See protocol.h for cmd_id and param_id definitions.
  * ─────────────────────────────────────────────────────────────────────────── */
-// typedef struct __attribute__((packed)) {
-//     uint8_t  cmd_id;
-//     uint16_t param_id;
-//     float    value;
-//     uint8_t  reserved;
-// } HID_CommandPayload_t;             /* 8 bytes */
+typedef struct __attribute__((packed)) {
+    uint8_t  cmd_id;
+    uint16_t param_id;
+    float    value;
+    uint8_t  reserved;
+} HID_CommandPayload_t;             /* 8 bytes */
 
 /* ── Config response payload (6 bytes) ───────────────────────────────────────
  *   Full report sent as [0x22 | uint16 param_id | float value].
  * ─────────────────────────────────────────────────────────────────────────── */
-// typedef struct __attribute__((packed)) {
-//     uint16_t param_id;
-//     float    value;
-// } HID_ConfigResponsePayload_t;           /* 7 bytes including report_id */
+typedef struct __attribute__((packed)) {
+    uint16_t param_id;
+    float    value;
+} HID_ConfigResponsePayload_t;           /* 7 bytes including report_id */
 
 /* ── Public API ─────────────────────────────────────────────────────────────
  *
@@ -106,10 +106,10 @@ extern USBD_HID_ItfTypeDef USBD_HID_fops_FS;
  *   Weak default (no-op) defined in usbd_hid_if.c.
  *   Override in hid_app_integration.cpp to handle commands.
  * ─────────────────────────────────────────────────────────────────────────── */
-// uint8_t HID_Joystick_Send           (int16_t value);
-// uint8_t HID_ODrive_SendTelemetry    (const HID_TelemetryPayload_t *payload);
-// uint8_t HID_ODrive_SendConfigResponse(uint16_t param_id, float value);
-// void    HID_ODrive_ProcessCommand   (const HID_CommandPayload_t *cmd);
+uint8_t HID_Joystick_Send           (int16_t value);
+uint8_t HID_ODrive_SendTelemetry    (const HID_TelemetryPayload_t *payload);
+uint8_t HID_ODrive_SendConfigResponse(uint16_t param_id, float value);
+void    HID_ODrive_ProcessCommand   (const HID_CommandPayload_t *cmd);
 
 #ifdef __cplusplus
 }

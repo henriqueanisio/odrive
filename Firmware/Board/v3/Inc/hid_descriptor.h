@@ -7,7 +7,7 @@
 
 
 
-__ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t HID_ReportDesc_FS[] __ALIGN_END __attribute__((unused)) =
 {
   /* USER CODE BEGIN 0 */
     HID_USAGE_PAGE (GENERIC_DESKTOP),
