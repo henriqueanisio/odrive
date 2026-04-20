@@ -264,6 +264,7 @@ board_v3 = {
         'Src/ffb_forces.c',
         'Src/ffb_axis.c',
         'Src/ffb_lut.c',
+        'Src/ffb_pid.c',
         'Src/usb_report_handler.c',
         'Src/usb_reports.c',
         'Src/util.c',
