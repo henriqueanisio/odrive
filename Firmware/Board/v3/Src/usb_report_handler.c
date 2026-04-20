@@ -20,17 +20,34 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
 
   if (reportType == HID_REPORT_TYPE_FEATURE) {
     switch (reportId) {
-      case PID_POOL_FEATURE_REPORT_ID: {
-        PID_PoolFeatureReport report;
-        PIDPoolFeatureReport_Init(&report);
-        USBD_CtlSendData(pdev, (uint8_t *)&report, sizeof(PID_PoolFeatureReport));
-        return TRUE;
+      case PID_POOL_FEATURE_REPORT_ID:
+      {
+          uint8_t buf[sizeof(PID_PoolFeatureReport) + 1];
+
+          buf[0] = PID_POOL_FEATURE_REPORT_ID;
+
+          PID_PoolFeatureReport report;
+          PIDPoolFeatureReport_Init(&report);
+
+          memcpy(&buf[1], &report, sizeof(report));
+
+          USBD_CtlSendData(pdev, buf, sizeof(buf));
+
+          return TRUE;
       }
-      
-      case PID_BLOCK_LOAD_REPORT_ID: {
-        PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
-        USBD_CtlSendData(pdev, (uint8_t *)&data, sizeof(PID_BlockLoadReport));
-        return TRUE;
+      case PID_BLOCK_LOAD_REPORT_ID:
+      {
+          uint8_t buf[sizeof(PID_BlockLoadReport) + 1];
+
+          buf[0] = PID_BLOCK_LOAD_REPORT_ID;
+
+          PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
+
+          memcpy(&buf[1], &data, sizeof(data));
+
+          USBD_CtlSendData(pdev, buf, sizeof(buf));
+          
+          return TRUE;
       }
     default:
       break;
