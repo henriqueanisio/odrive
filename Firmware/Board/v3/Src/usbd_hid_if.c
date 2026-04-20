@@ -31,22 +31,16 @@ static int8_t HID_DeInit_FS(void) {
   /* USER CODE END 5 */
 }
 
-static int8_t HID_OutEvent_FS(uint8_t* pbuf, uint8_t n)
-{
-  if (n < 1U) return (USBD_OK);
+static int8_t HID_OutEvent_FS(uint8_t* pbuf, uint8_t n) {
+    if (n < 1U) return (USBD_OK);
 
-  if (pbuf[0] == HID_REPORT_ID_COMMAND) {
-    /* Vendor command report 0x21 — route to protocol handler.
-     * pbuf[0] = report_id, pbuf[1..] = HID_CommandPayload_t fields. */
-    if (n >= (uint8_t)(sizeof(HID_CommandPayload_t) + 1U)) {
-      HID_ODrive_ProcessCommand((const HID_CommandPayload_t *)&pbuf[1]);
+    if (pbuf[0] == HID_REPORT_ID_COMMAND) {
+        // Seu código de comando vendor...
+    } else if (pbuf[0] >= 1 && pbuf[0] <= 0x1F) { 
+        // ENVIE PARA O PID: Isso fará o Windows "conversar" com o ffb_pid.c
+        ffb_pid_process_report(pbuf, n); 
     }
-  } else {
-    /* FFB output reports (0x01–0x0D, 0x07 CreateNewEffect) */
-    HID_OutEvent(pbuf, n);
-  }
-
-  return (USBD_OK);
+    return (USBD_OK);
 }
 
 
