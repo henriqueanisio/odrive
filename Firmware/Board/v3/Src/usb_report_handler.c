@@ -41,10 +41,14 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
           uint8_t buf[5];
 
           buf[0] = PID_BLOCK_LOAD_REPORT_ID;
-          buf[1] = s.last_load_index;
-          buf[2] = s.last_load_status;
 
-          uint16_t pool = FFB_MAX_EFFECTS;
+          const PID_BlockLoadReport *data = FFB_GetPidBlockLoad();
+
+          buf[1] = data->effectBlockIndex;
+          buf[2] = data->blockLoadStatus;
+
+          uint16_t pool = data->ramPoolAvailable;
+
           buf[3] = pool & 0xFF;
           buf[4] = pool >> 8;
 
