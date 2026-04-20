@@ -342,9 +342,16 @@ extern "C" void hid_send_telemetry(void)
          * When actuators are on: not paused (0), enabled (1), power (1), switches on (1,1)
          * → 0b00011110 = 0x1E.  When off: all zero = 0x00.                       */
         uint8_t pid_report[3];
+
         pid_report[0] = FFB_REPORT_PID_STATE;
-        pid_report[1] = s_pid_actuators_on ? 0x1EU : 0x00U;
-        pid_report[2] = 0x00U;  /* effectPlaying=0, effectBlockIndex=0 */
+
+        pid_report[1] =
+            (g_state.devicePaused ? 0x01 : 0x00) |
+            (g_state.actuatorsEnabled ? 0x02 : 0x00) |
+            (g_state.effectPlaying ? 0x20 : 0x00);
+
+        pid_report[2] = g_state.effectBlockIndex;
+
         hid_queue_push(pid_report, sizeof(pid_report));
     }
 
