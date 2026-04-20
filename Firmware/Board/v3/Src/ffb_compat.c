@@ -51,7 +51,7 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
     }
 
     /* Route through HID_OutEvent so global counters are updated */
-    HID_OutEvent(buf, (uint8_t)(len + 1U));
+    HID_OutEvent(buf, (uint16_t)(len + 1U));
 }
 
 /* ── ffb_actuators_enabled ───────────────────────────────────────────────── */

@@ -27,18 +27,11 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
         return TRUE;
       }
       
-    case PID_BLOCK_LOAD_REPORT_ID: {
-        uint8_t buf[5];
-
-        buf[0] = PID_BLOCK_LOAD_REPORT_ID; // ID = 8
-        buf[1] = 1; // effect index (use fixo pra teste)
-        buf[2] = 1; // status = SUCCESS
-        buf[3] = 0xFF; // RAM low
-        buf[4] = 0xFF; // RAM high
-
-        USBD_CtlSendData(pdev, buf, 5);
+      case PID_BLOCK_LOAD_REPORT_ID: {
+        PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
+        USBD_CtlSendData(pdev, (uint8_t *)&data, sizeof(PID_BlockLoadReport));
         return TRUE;
-    }
+      }
     default:
       break;
     }
@@ -50,7 +43,7 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
 volatile uint16_t g_ffb_usb_rx_count = 0;
 volatile uint8_t  g_ffb_usb_last_rid = 0;
 
-void HID_OutEvent(uint8_t *pbuf, uint8_t n)
+void HID_OutEvent(uint8_t *pbuf, uint16_t n)
 {
     if (n >= 1U) {
         g_ffb_usb_rx_count++;

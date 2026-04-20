@@ -148,45 +148,116 @@ void On_DeviceGain(const PID_DeviceGainReport *data) {
   g_deviceGain = data->gain;
 }
 
-void FFB_OnUsbData(uint8_t *buf, uint8_t len) {
+void FFB_OnUsbData(uint8_t *buf, uint16_t len)
+{
   if (len < 2)
     return;
 
   uint8_t report_id = buf[0];
-  switch (report_id) {
+  const uint8_t *data = &buf[1];
+  uint16_t payload_len = len - 1;
+
+  switch (report_id)
+  {
   case SET_EFFECT_REPORT_ID:
-    On_SetEffect((const PID_SetEffectReport *)buf);
+    if (payload_len < sizeof(PID_SetEffectReport)) return;
+    {
+      PID_SetEffectReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_SetEffect(&tmp);
+    }
     return;
+
   case SET_ENVELOPE_REPORT_ID:
-    On_SetEnvelope((const PID_SetEnvelopeReport *)buf);
+    if (payload_len < sizeof(PID_SetEnvelopeReport)) return;
+    {
+      PID_SetEnvelopeReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_SetEnvelope(&tmp);
+    }
     return;
+
   case SET_CONDITION_REPORT_ID:
-    On_SetConditionReport((const PID_SetConditionReport *)buf);
+    if (payload_len < sizeof(PID_SetConditionReport)) return;
+    {
+      PID_SetConditionReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_SetConditionReport(&tmp);
+    }
     return;
+
   case SET_PERIODIC_REPORT_ID:
-    On_SetPeriodic((const PID_SetPeriodicReport *)buf);
+    if (payload_len < sizeof(PID_SetPeriodicReport)) return;
+    {
+      PID_SetPeriodicReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_SetPeriodic(&tmp);
+    }
     return;
+
   case SET_CONSTANT_FORCE_REPORT_ID:
-    On_SetConstantForce((const PID_SetConstantForceReport *)buf);
+    if (payload_len < sizeof(PID_SetConstantForceReport)) return;
+    {
+      PID_SetConstantForceReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_SetConstantForce(&tmp);
+    }
     return;
+
   case SET_RAMP_FORCE_REPORT_ID:
-    On_SetRampForce((const PID_SetRampForceReport *)buf);
+    if (payload_len < sizeof(PID_SetRampForceReport)) return;
+    {
+      PID_SetRampForceReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_SetRampForce(&tmp);
+    }
     return;
+
   case CREATE_NEW_EFFECT_REPORT_ID:
-    FFB_OnCreateNewEffect((const PID_CreateNewEffectReport*)buf);
+    if (payload_len < sizeof(PID_CreateNewEffectReport)) return;
+    {
+      PID_CreateNewEffectReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      FFB_OnCreateNewEffect(&tmp);
+    }
     return;
+
   case EFFECT_OPERATION_REPORT_ID:
-    On_EffectOperation((const PID_EffectOperationReport *)buf);
+    if (payload_len < sizeof(PID_EffectOperationReport)) return;
+    {
+      PID_EffectOperationReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_EffectOperation(&tmp);
+    }
     return;
+
   case DEVICE_BLOCK_FREE_REPORT_ID:
-    On_BlockFree((const PID_BlockFreeReport *)buf);
+    if (payload_len < sizeof(PID_BlockFreeReport)) return;
+    {
+      PID_BlockFreeReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_BlockFree(&tmp);
+    }
     return;
+
   case DEVICE_CONTROL_REPORT_ID:
-    On_DeviceControl((const PID_DeviceControlReport *)buf);
+    if (payload_len < sizeof(PID_DeviceControlReport)) return;
+    {
+      PID_DeviceControlReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_DeviceControl(&tmp);
+    }
     return;
+
   case DEVICE_GAIN_REPORT_ID:
-    On_DeviceGain((const PID_DeviceGainReport *)buf);
+    if (payload_len < sizeof(PID_DeviceGainReport)) return;
+    {
+      PID_DeviceGainReport tmp;
+      memcpy(&tmp, data, sizeof(tmp));
+      On_DeviceGain(&tmp);
+    }
     return;
+
   default:
     return;
   }

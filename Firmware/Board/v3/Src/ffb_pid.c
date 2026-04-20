@@ -1,6 +1,7 @@
 #include "ffb_pid.h"
 #include "ffb_lut.h"
 #include "config.h"
+#include "hid_queue.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
 
@@ -107,9 +108,8 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
             idx = _alloc_slot(r->effect_type);
         }
         if (idx == 0U) {
-            s.last_load_index  = 0U;
+            s.last_load_index  = 1U;
             s.last_load_status = 2U; /* full */
-            break;
         }
 
         FfbEffect_t *e = &s.effects[idx - 1U];
@@ -161,23 +161,58 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 
     case FFB_REPORT_EFFECT_OPERATION: {
         if (len < sizeof(FFB_EffectOperation_t)) break;
+
         const FFB_EffectOperation_t *r = (const FFB_EffectOperation_t *)data;
         uint8_t idx = r->effect_block_index;
+
         if (idx == 0U || idx > FFB_MAX_EFFECTS) break;
+
         FfbEffect_t *e = &s.effects[idx - 1U];
 
-        if (r->operation == FFB_OP_START || r->operation == FFB_OP_START_SOLO) {
+        switch (r->operation)
+        {
+        case FFB_OP_START:
+        case FFB_OP_START_SOLO:
+
             if (r->operation == FFB_OP_START_SOLO) {
                 /* Stop all other effects */
                 for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
-                    if ((i + 1U) != idx) s.effects[i].active = false;
+                    if ((i + 1U) != idx) {
+                        s.effects[i].active = false;
+                    }
                 }
             }
+
             e->active     = true;
             e->start_tick = HAL_GetTick();
-        } else if (r->operation == FFB_OP_STOP) {
+
+            g_state.effectPlaying    = 1;
+            g_state.effectBlockIndex = idx;
+            enqueue_pid_state_report();
+            break;
+
+        case FFB_OP_STOP:
+
             e->active = false;
+
+            /* verificar se ainda existe algum efeito ativo */
+            g_state.effectPlaying = 0;
+            g_state.effectBlockIndex = 0;
+            
+            enqueue_pid_state_report();
+            for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
+                if (s.effects[i].active) {
+                    g_state.effectPlaying    = 1;
+                    g_state.effectBlockIndex = i + 1;
+                    break;
+                }
+            }
+            break;
+
+        default:
+            break;
         }
+
         break;
     }
 
@@ -244,6 +279,23 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 /* ═══════════════════════════════════════════════════════════════════════════
  * PRIVATE HELPERS
  * ═══════════════════════════════════════════════════════════════════════════ */
+
+static void enqueue_pid_state_report(void)
+{
+    uint8_t report[3];
+
+    report[0] = 2; // Report ID (PID State)
+
+    report[1] =
+        (g_state.devicePaused ? 0x01 : 0x00) |
+        (g_state.actuatorsEnabled ? 0x02 : 0x00);
+
+    report[2] =
+        (g_state.effectPlaying ? 0x01 : 0x00) |
+        (g_state.effectBlockIndex << 1);
+
+    hid_queue_push(report, sizeof(report));
+}
 
 /* ── IIR alpha from cutoff frequency ────────────────────────────────────────
  * alpha = 1 − exp(−2π × fc × dt)
@@ -438,6 +490,7 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
 
             /* Phase offset in centidegrees → normalised [0..1] */
             p += (float)e->per_phase / 36000.0f;
+            p -= (int)p;
 
             float wave;
             if (e->type == FFB_ET_SINE)          wave = _ffb_sin(p);
@@ -511,8 +564,9 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
      * device_gain is set by the game/OS via HID PID Device Gain report (0x0D).
      * It represents the game's "FFB strength" slider — should only scale the
      * game's effects, not the firmware physical corrections below.          */
-    const float game_gain = (float)s.device_gain / 255.0f;
-    di_sum *= game_gain;
+    float game_gain = (s.device_gain == 0)
+    ? 1.0f
+    : (float)s.device_gain / 255.0f;
 
     /* ── STAGE 4: Inertia — filtered acceleration derivative ────────────────
      * Simulates rotational mass of the steering wheel + motor rotor.

@@ -92,7 +92,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgFSDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN
 
   HID_EPIN_ADDR,     /*bEndpointAddress: Endpoint Address (IN)*/
   0x03,          /*bmAttributes: Interrupt endpoint*/
-  HID_EPIN_SIZE, /*wMaxPacketSize: 2 Byte max */
+  HID_EPIN_SIZE, 
   0x00,
   HID_FS_BINTERVAL,          /*bInterval: Polling Interval */
   /* 34 */
@@ -151,7 +151,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_CfgHSDesc[USB_HID_CONFIG_DESC_SIZ] __ALIGN
 
   HID_EPIN_ADDR,     /*bEndpointAddress: Endpoint Address (IN)*/
   0x03,          /*bmAttributes: Interrupt endpoint*/
-  HID_EPIN_SIZE, /*wMaxPacketSize: 2 Byte max */
+  HID_EPIN_SIZE, 
   0x00,
   HID_HS_BINTERVAL,          /*bInterval: Polling Interval */
   /* 34 */
@@ -210,7 +210,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_OtherSpeedCfgDesc[USB_HID_CONFIG_DESC_SIZ]
 
   HID_EPIN_ADDR,     /*bEndpointAddress: Endpoint Address (IN)*/
   0x03,          /*bmAttributes: Interrupt endpoint*/
-  HID_EPIN_SIZE, /*wMaxPacketSize: 2 Byte max */
+  HID_EPIN_SIZE, 
   0x00,
   HID_FS_BINTERVAL,          /*bInterval: Polling Interval */
   /* 34 */
@@ -219,7 +219,7 @@ __ALIGN_BEGIN static uint8_t USBD_HID_OtherSpeedCfgDesc[USB_HID_CONFIG_DESC_SIZ]
   USB_DESC_TYPE_ENDPOINT, /* bDescriptorType: */
   HID_EPOUT_ADDR,  /*bEndpointAddress: Endpoint Address (OUT)*/
   0x03, /* bmAttributes: Interrupt endpoint */
-  HID_EPOUT_SIZE,  /* wMaxPacketSize: 2 Bytes max  */
+  HID_EPOUT_SIZE,  
   0x00,
   HID_FS_BINTERVAL,  /* bInterval: Polling Interval */
   /* 41 */
@@ -480,7 +480,7 @@ static uint8_t USBD_HID_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
     USBD_HID_HandleTypeDef *hhid = (USBD_HID_HandleTypeDef *)pdev->pClassData;
 
     // ⚠️ NÃO inventa tamanho — usa o buffer completo
-    uint16_t len = USBD_HID_OUTREPORT_BUF_SIZE;
+    uint16_t len = USBD_LL_GetRxDataSize(pdev, epnum);
 
     // Encaminha para camada de aplicação (isso chama ffb_process_report)
     ((USBD_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf, len);

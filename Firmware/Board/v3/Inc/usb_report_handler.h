@@ -7,4 +7,4 @@ extern volatile uint8_t  g_ffb_usb_last_rid;
 
 uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue);
 
-void HID_OutEvent(uint8_t* pbuf, uint8_t n);
+void HID_OutEvent(uint8_t* pbuf, uint16_t n);
