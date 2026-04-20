@@ -2,6 +2,7 @@
 #include "ffb_pid.h"
 #include <string.h>
 #include "hid_queue.h"
+#include "ffb_pid.h"
 #include "usb_report_handler.h"
 
 extern USBD_HandleTypeDef hUsbDeviceFS;
@@ -31,16 +32,45 @@ static int8_t HID_DeInit_FS(void) {
   /* USER CODE END 5 */
 }
 
-static int8_t HID_OutEvent_FS(uint8_t* pbuf, uint8_t n) {
-    if (n < 1U) return (USBD_OK);
+static int8_t HID_OutEvent_FS(uint8_t* pbuf, uint8_t n)
+{
+  if (n < 1U) return (USBD_OK);
 
-    if (pbuf[0] == HID_REPORT_ID_COMMAND) {
-        // Seu código de comando vendor...
-    } else if (pbuf[0] >= 1 && pbuf[0] <= 0x1F) { 
-        // ENVIE PARA O PID: Isso fará o Windows "conversar" com o ffb_pid.c
-        ffb_pid_process_report(pbuf, n); 
+  if (pbuf[0] == HID_REPORT_ID_COMMAND) {
+    /* Vendor command report 0x21 — route to protocol handler.
+     * pbuf[0] = report_id, pbuf[1..] = HID_CommandPayload_t fields. */
+    if (n >= (uint8_t)(sizeof(HID_CommandPayload_t) + 1U)) {
+      HID_ODrive_ProcessCommand((const HID_CommandPayload_t *)&pbuf[1]);
     }
-    return (USBD_OK);
+  } else {
+    /* FFB output reports (0x01–0x0D, 0x07 CreateNewEffect) */
+    HID_OutEvent(pbuf, n);
+  }
+
+  return (USBD_OK);
+}
+
+static int8_t HID_OutEvent_FS(uint8_t* pbuf, uint8_t n)
+{
+  if (n < 1U) return (USBD_OK);
+
+  uint8_t report_id = pbuf[0];
+
+  // 1. Mantém o tratamento do seu comando Vendor (ODrive config)
+  if (report_id == HID_REPORT_ID_COMMAND) {
+   /* Vendor command report 0x21 — route to protocol handler.
+     * pbuf[0] = report_id, pbuf[1..] = HID_CommandPayload_t fields. */
+    if (n >= (uint8_t)(sizeof(HID_CommandPayload_t) + 1U)) {
+      HID_ODrive_ProcessCommand((const HID_CommandPayload_t *)&pbuf[1]);
+    }
+  } 
+  // 2. Encaminha os Reports de FFB (IDs entre 1 e 0x1F conforme seu descritor)
+  // O ponteiro de dados começa em pbuf[1] e o tamanho útil é n-1
+  else if (report_id > 0 && report_id < 0x20) {
+    ffb_pid_process_report(report_id, &pbuf[1], n - 1);
+  }
+
+  return (USBD_OK);
 }
 
 
