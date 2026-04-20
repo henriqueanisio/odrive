@@ -77,10 +77,6 @@ void ffb_init(void)
 /* ── Internal: find a free slot for a new effect, return 1-based index ───── */
 static uint8_t _alloc_slot(uint8_t requested_type)
 {
-    /* Reuse existing slot of same type first */
-    for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
-        if (s.effects[i].type == requested_type) return (uint8_t)(i + 1U);
-    }
     /* Otherwise find empty slot */
     for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
         if (s.effects[i].type == FFB_ET_NONE) return (uint8_t)(i + 1U);
