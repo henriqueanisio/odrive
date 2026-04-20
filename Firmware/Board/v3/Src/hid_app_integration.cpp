@@ -621,3 +621,9 @@ extern "C" void hid_app_init(void)
         axis0().requested_state_ = Axis::AXIS_STATE_STARTUP_SEQUENCE;
     }
 }
+
+extern "C" void hid_notify_pid_state_change(bool enabled)
+{
+    s_pid_actuators_on = enabled;
+    s_pid_state_dirty  = true;
+}
