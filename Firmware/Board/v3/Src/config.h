@@ -8,7 +8,6 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── FFB engine constants (used by ffb_engine.c / ffb_forces.c) ────────────── */
 #define MAX_EFFECTS       40
 #define MEMORY_POOL_SIZE  0x3fff
 #define DURATION_INF      0xffff

@@ -160,17 +160,17 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
     }
 
     case FFB_REPORT_EFFECT_OPERATION: {
-        if (len < sizeof(FFB_EffectOperation_t)) break;
+    if (len < sizeof(FFB_EffectOperation_t)) break;
 
-        const FFB_EffectOperation_t *r = (const FFB_EffectOperation_t *)data;
-        uint8_t idx = r->effect_block_index;
+    const FFB_EffectOperation_t *r = (const FFB_EffectOperation_t *)data;
+    uint8_t idx = r->effect_block_index;
 
-        if (idx == 0U || idx > FFB_MAX_EFFECTS) break;
+    if (idx == 0U || idx > FFB_MAX_EFFECTS) break;
 
-        FfbEffect_t *e = &s.effects[idx - 1U];
+    FfbEffect_t *e = &s.effects[idx - 1U];
 
-        switch (r->operation)
-        {
+    switch (r->operation)
+    {
         case FFB_OP_START:
         case FFB_OP_START_SOLO:
 
@@ -185,33 +185,41 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 
             e->active     = true;
             e->start_tick = HAL_GetTick();
-
-            g_state.effectPlaying    = 1;
-            g_state.effectBlockIndex = idx;
-            enqueue_pid_state_report();
             break;
 
         case FFB_OP_STOP:
-
             e->active = false;
-
-            /* verificar se ainda existe algum efeito ativo */
-            g_state.effectPlaying = 0;
-            g_state.effectBlockIndex = 0;
-            
-            enqueue_pid_state_report();
-            for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
-                if (s.effects[i].active) {
-                    g_state.effectPlaying    = 1;
-                    g_state.effectBlockIndex = i + 1;
-                    break;
-                }
-            }
             break;
 
         default:
             break;
         }
+
+        /* 🔥 CALCULAR ESTADO GLOBAL */
+        uint8_t playing = 0;
+        uint8_t active_idx = 0;
+
+        for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
+            if (s.effects[i].active) {
+                playing = 1;
+                active_idx = i + 1;
+                break;
+            }
+        }
+
+        /* 🔥 ENVIAR PID STATE */
+        uint8_t report[3];
+        report[0] = FFB_REPORT_PID_STATE;
+
+        report[1] =
+            (s.paused ? 0x01 : 0x00) |
+            (s.actuators_enabled ? 0x02 : 0x00);
+
+        report[2] =
+            (playing ? 0x01 : 0x00) |
+            (active_idx << 1);
+
+        hid_queue_push(report, sizeof(report));
 
         break;
     }
@@ -279,23 +287,6 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 /* ═══════════════════════════════════════════════════════════════════════════
  * PRIVATE HELPERS
  * ═══════════════════════════════════════════════════════════════════════════ */
-
-static void enqueue_pid_state_report(void)
-{
-    uint8_t report[3];
-
-    report[0] = 2; // Report ID (PID State)
-
-    report[1] =
-        (g_state.devicePaused ? 0x01 : 0x00) |
-        (g_state.actuatorsEnabled ? 0x02 : 0x00);
-
-    report[2] =
-        (g_state.effectPlaying ? 0x01 : 0x00) |
-        (g_state.effectBlockIndex << 1);
-
-    hid_queue_push(report, sizeof(report));
-}
 
 /* ── IIR alpha from cutoff frequency ────────────────────────────────────────
  * alpha = 1 − exp(−2π × fc × dt)

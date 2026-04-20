@@ -261,8 +261,6 @@ board_v3 = {
         'Src/protocol.c',
         'Src/flash_storage.c',
         'Src/config.c',
-        'Src/ffb_compat.c',
-        'Src/ffb_engine.c',
         'Src/ffb_forces.c',
         'Src/ffb_axis.c',
         'Src/ffb_lut.c',

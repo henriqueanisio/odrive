@@ -22,39 +22,28 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req)
 
     if (reportType == HID_REPORT_TYPE_FEATURE)
     {
+        uint8_t buf[16];
+        uint8_t size = 0;
+
         switch (reportId)
         {
-        case PID_BLOCK_LOAD_REPORT_ID:
-        {
-            uint8_t buf[5];
+        case FFB_REPORT_PID_BLOCK_LOAD:
+            size = ffb_get_block_load_report(buf, sizeof(buf));
+            break;
 
-            buf[0] = PID_BLOCK_LOAD_REPORT_ID;
-            buf[1] = 1; // effectBlockIndex válido (mínimo 1)
-            buf[2] = 1; // BLOCK_LOAD_SUCCESS
-            buf[3] = 0xFF;
-            buf[4] = 0x00;
+        case FFB_REPORT_PID_POOL:
+            size = ffb_get_pool_report(buf, sizeof(buf));
+            break;
 
-            uint16_t len = (wLength < 5) ? wLength : 5;
-
-            USBD_CtlSendData(pdev, buf, len);
-            return TRUE;
+        default:
+            break;
         }
 
-        case PID_POOL_FEATURE_REPORT_ID:
+        if (size > 0)
         {
-            uint8_t buf[5];
-
-            buf[0] = PID_POOL_FEATURE_REPORT_ID;
-            buf[1] = 0x04; // pool size LSB
-            buf[2] = 0x00; // pool size MSB
-            buf[3] = 4;    // max effects
-            buf[4] = 0;
-
-            uint16_t len = (wLength < 5) ? wLength : 5;
-
+            uint16_t len = (wLength < size) ? wLength : size;
             USBD_CtlSendData(pdev, buf, len);
             return TRUE;
-        }
         }
     }
 
