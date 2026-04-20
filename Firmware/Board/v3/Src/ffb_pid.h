@@ -43,22 +43,22 @@ extern "C" {
 /* ── HID PID report IDs — matches OpenFFBoard (FFB_ID_OFFSET=0) ─────────────
  *   Output reports (host → device via OUT endpoint or SET_REPORT):
  * ─────────────────────────────────────────────────────────────────────────── */
-#define FFB_REPORT_SET_EFFECT          0x01U
-#define FFB_REPORT_SET_ENVELOPE        0x02U
-#define FFB_REPORT_SET_CONDITION       0x03U
-#define FFB_REPORT_SET_PERIODIC        0x04U
-#define FFB_REPORT_SET_CONSTANT_FORCE  0x05U
-#define FFB_REPORT_SET_RAMP            0x06U
-#define FFB_REPORT_EFFECT_OPERATION    0x0AU
-#define FFB_REPORT_BLOCK_FREE          0x0BU
-#define FFB_REPORT_DEVICE_CONTROL      0x0CU
-#define FFB_REPORT_DEVICE_GAIN         0x0DU
-#define FFB_REPORT_CREATE_NEW_EFFECT   0x07U  /* Feature SET_REPORT (unique, no output conflict) */
+#define FFB_REPORT_SET_EFFECT          0x03U
+#define FFB_REPORT_SET_ENVELOPE        0x04U
+#define FFB_REPORT_SET_CONDITION       0x05U
+#define FFB_REPORT_SET_PERIODIC        0x06U
+#define FFB_REPORT_SET_CONSTANT_FORCE  0x07U
+#define FFB_REPORT_SET_RAMP            0x08U
+#define FFB_REPORT_EFFECT_OPERATION    0x0CU
+#define FFB_REPORT_BLOCK_FREE          0x0DU
+#define FFB_REPORT_DEVICE_CONTROL      0x0EU
+#define FFB_REPORT_DEVICE_GAIN         0x0FU
+#define FFB_REPORT_CREATE_NEW_EFFECT   0x09U  /* Feature SET_REPORT */
 
 /* HID PID report IDs (device → host) */
-#define FFB_REPORT_PID_STATE           0x02U  /* IN  — shared ID with SetEnvelope OUT, OK */
-#define FFB_REPORT_PID_BLOCK_LOAD      0x08U  /* Feature GET_REPORT              */
-#define FFB_REPORT_PID_POOL            0x09U  /* Feature GET_REPORT              */
+#define FFB_REPORT_PID_STATE           0x02U  /* IN — Input report ID 2, unchanged */
+#define FFB_REPORT_PID_BLOCK_LOAD      0x0AU  /* Feature GET_REPORT (ID 10)       */
+#define FFB_REPORT_PID_POOL            0x0BU  /* Feature GET_REPORT (ID 11)       */
 
 /* ── Effect Operation op-codes ───────────────────────────────────────────── */
 #define FFB_OP_START       1U

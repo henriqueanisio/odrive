@@ -38,9 +38,8 @@ PIDStateReport;
 
 void PIDStateReport_Init(PIDStateReport *report);
 
-// Output Reports
-// ...
-#define SET_EFFECT_REPORT_ID 1
+// Output Reports — IDs match hid_descriptor.h (1,2 reserved for Input reports)
+#define SET_EFFECT_REPORT_ID 3
 
 HID_REPORT PID_SetEffectReport {
   uint8_t id;
@@ -54,7 +53,7 @@ HID_REPORT PID_SetEffectReport {
 }
 PID_SetEffectReport;
 
-#define SET_ENVELOPE_REPORT_ID 2
+#define SET_ENVELOPE_REPORT_ID 4
 
 HID_REPORT PID_SetEnvelopeReport {
   uint8_t id;
@@ -66,7 +65,7 @@ HID_REPORT PID_SetEnvelopeReport {
 }
 PID_SetEnvelopeReport;
 
-#define SET_CONDITION_REPORT_ID 3
+#define SET_CONDITION_REPORT_ID 5
 
 HID_REPORT PID_SetConditionReport {
   uint8_t id;
@@ -80,7 +79,7 @@ HID_REPORT PID_SetConditionReport {
 }
 PID_SetConditionReport;
 
-#define SET_PERIODIC_REPORT_ID 4
+#define SET_PERIODIC_REPORT_ID 6
 
 HID_REPORT PID_SetPeriodicReport {
   uint8_t id;
@@ -92,7 +91,7 @@ HID_REPORT PID_SetPeriodicReport {
 }
 PID_SetPeriodicReport;
 
-#define SET_CONSTANT_FORCE_REPORT_ID 5
+#define SET_CONSTANT_FORCE_REPORT_ID 7
 
 HID_REPORT PID_SetConstantForceReport {
   uint8_t id;
@@ -101,7 +100,7 @@ HID_REPORT PID_SetConstantForceReport {
 }
 PID_SetConstantForceReport;
 
-#define SET_RAMP_FORCE_REPORT_ID 6
+#define SET_RAMP_FORCE_REPORT_ID 8
 
 HID_REPORT PID_SetRampForceReport {
   uint8_t id;
@@ -111,7 +110,7 @@ HID_REPORT PID_SetRampForceReport {
 }
 PID_SetRampForceReport;
 
-#define EFFECT_OPERATION_REPORT_ID 10
+#define EFFECT_OPERATION_REPORT_ID 12
 
 enum EFFECT_OPERATION {
   EF_OP_EFFECT_START = 1,
@@ -127,7 +126,7 @@ HID_REPORT PID_EffectOperationReport {
 }
 PID_EffectOperationReport;
 
-#define DEVICE_BLOCK_FREE_REPORT_ID 11
+#define DEVICE_BLOCK_FREE_REPORT_ID 13
 
 HID_REPORT PID_BlockFreeReport {
   uint8_t id;
@@ -135,7 +134,7 @@ HID_REPORT PID_BlockFreeReport {
 }
 PID_BlockFreeReport;
 
-#define DEVICE_CONTROL_REPORT_ID 12
+#define DEVICE_CONTROL_REPORT_ID 14
 
 enum PID_DeviceControl {
   DC_ENABLE_ACTUATORS = 1,
@@ -152,7 +151,7 @@ HID_REPORT PID_DeviceControlReport {
 }
 PID_DeviceControlReport;
 
-#define DEVICE_GAIN_REPORT_ID 13
+#define DEVICE_GAIN_REPORT_ID 15
 
 HID_REPORT PID_DeviceGainReport {
   uint8_t id;
@@ -161,7 +160,7 @@ HID_REPORT PID_DeviceGainReport {
 PID_DeviceGainReport;
 
 // Feature Reports
-#define CREATE_NEW_EFFECT_REPORT_ID 7
+#define CREATE_NEW_EFFECT_REPORT_ID 9
 
 typedef enum PID_EffectType {
   ET_CONSTANT_FORCE = 1,
@@ -184,7 +183,7 @@ HID_REPORT PID_CreateNewEffectReport {
 }
 PID_CreateNewEffectReport;
 
-#define PID_BLOCK_LOAD_REPORT_ID 8
+#define PID_BLOCK_LOAD_REPORT_ID 10
 
 typedef enum PID_BlockLoadStatus {
   BLOCK_LOAD_SUCCESS = 1,
@@ -200,7 +199,7 @@ HID_REPORT PID_BlockLoadReport {
 }
 PID_BlockLoadReport;
 
-#define PID_POOL_FEATURE_REPORT_ID 9
+#define PID_POOL_FEATURE_REPORT_ID 11
 #define PID_DEVICE_MANAGED_POOL 1
 #define PID_SHARED_PARAMETER_BLOCKS 1
 
