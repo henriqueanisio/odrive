@@ -49,7 +49,7 @@ static int8_t HID_OutEvent_FS(uint8_t* pbuf, uint8_t n)
   // 2. Encaminha os Reports de FFB (IDs entre 1 e 0x1F conforme seu descritor)
   // O ponteiro de dados começa em pbuf[1] e o tamanho útil é n-1
   else if (report_id > 0 && report_id < 0x20) {
-    ffb_pid_process_report(report_id, &pbuf[1], n - 1);
+    ffb_process_report(report_id, &pbuf[1], n - 1);
   }
 
   return (USBD_OK);
