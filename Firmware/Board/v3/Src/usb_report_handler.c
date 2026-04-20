@@ -6,6 +6,7 @@
 #include "usbd_ioreq.h"
 
 #include "ffb.h"
+#include "ffb_pid.h"
 #include <stdint.h>
 
 #define HID_REPORT_TYPE_INPUT 1
@@ -14,24 +15,46 @@
 
 #include "usb_report_handler.h"
 
-if (reportType == HID_REPORT_TYPE_FEATURE) {
-    switch (reportId) {
-      case PID_POOL_FEATURE_REPORT_ID: {
-        PID_PoolFeatureReport report;
-        PIDPoolFeatureReport_Init(&report);
-        USBD_CtlSendData(pdev, (uint8_t *)&report, sizeof(PID_PoolFeatureReport));
-        return TRUE;
-      }
-      
-      case PID_BLOCK_LOAD_REPORT_ID: {
-        PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
-        USBD_CtlSendData(pdev, (uint8_t *)&data, sizeof(PID_BlockLoadReport));
-        return TRUE;
-      }
-    default:
-      break;
+uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req)
+{
+    uint16_t wLength   = req->wLength;
+    uint8_t reportId   = req->wValue & 0xFF;
+    uint8_t reportType = (req->wValue >> 8) & 0xFF;
+
+    if (reportType == HID_REPORT_TYPE_FEATURE)
+    {
+        uint8_t buf[16];
+        uint8_t size = 0;
+
+        switch (reportId)
+        {
+        case FFB_REPORT_PID_POOL:
+            size = ffb_get_pool_report(buf, sizeof(buf));
+            break;
+
+        case FFB_REPORT_PID_BLOCK_LOAD:
+            size = ffb_get_block_load_report(buf, sizeof(buf));
+            break;
+
+        default:
+            break;
+        }
+
+        if (size > 0)
+        {
+            uint16_t len = (wLength < size) ? wLength : size;
+            USBD_CtlSendData(pdev, buf, len);
+            return TRUE;
+        }
     }
-  }
+
+    /* fallback — nunca quebrar USB */
+    uint8_t dummy[1] = {0};
+    uint16_t len = (wLength < 1) ? wLength : 1;
+    USBD_CtlSendData(pdev, dummy, len);
+
+    return TRUE;
+}
 
 
 /* Counters incremented on every FFB Output report received from USB host (games). */
