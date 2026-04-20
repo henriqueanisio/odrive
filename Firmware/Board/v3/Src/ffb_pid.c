@@ -77,15 +77,12 @@ void ffb_init(void)
 /* ── Internal: find a free slot for a new effect, return 1-based index ───── */
 static uint8_t _alloc_slot(uint8_t requested_type)
 {
-    /* Reuse existing slot of same type first */
     for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
-        if (s.effects[i].type == requested_type) return (uint8_t)(i + 1U);
+        if (!s.effects[i].active && s.effects[i].type == FFB_ET_NONE) {
+            return (uint8_t)(i + 1U);
+        }
     }
-    /* Otherwise find empty slot */
-    for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
-        if (s.effects[i].type == FFB_ET_NONE) return (uint8_t)(i + 1U);
-    }
-    return 0U; /* full */
+    return 0U;
 }
 
 /* ── ffb_process_report ──────────────────────────────────────────────────── */
@@ -113,6 +110,8 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
         }
 
         FfbEffect_t *e = &s.effects[idx - 1U];
+        /* 🔥 LIMPA COMPLETAMENTE O SLOT */
+        memset(e, 0, sizeof(FfbEffect_t));
         e->type        = r->effect_type;
         e->gain        = r->gain;
         e->duration_ms = r->duration;
@@ -152,10 +151,17 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
 
     case FFB_REPORT_SET_CONSTANT_FORCE: {
         if (len < sizeof(FFB_SetConstantForce_t)) break;
+
         const FFB_SetConstantForce_t *r = (const FFB_SetConstantForce_t *)data;
         uint8_t idx = r->effect_block_index;
+
         if (idx == 0U || idx > FFB_MAX_EFFECTS) break;
-        s.effects[idx - 1U].magnitude = r->magnitude;
+
+        FfbEffect_t *e = &s.effects[idx - 1U];
+
+        if (e->type == FFB_ET_NONE) break;
+
+        e->magnitude = r->magnitude;
         break;
     }
 
@@ -173,9 +179,36 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
     {
         case FFB_OP_START:
         case FFB_OP_START_SOLO:
+        {
+            bool valid = false;
+
+            switch (e->type)
+            {
+                case FFB_ET_CONSTANT:
+                    valid = (e->magnitude != 0);
+                    break;
+
+                case FFB_ET_SPRING:
+                case FFB_ET_DAMPER:
+                    valid = (e->pos_coeff != 0 || e->neg_coeff != 0);
+                    break;
+
+                case FFB_ET_SINE:
+                case FFB_ET_SQUARE:
+                case FFB_ET_TRIANGLE:
+                    valid = (e->per_magnitude != 0);
+                    break;
+
+                default:
+                    break;
+            }
+
+            if (!valid) {
+                /* NÃO ativa ainda — aguarda SET_* */
+                break;
+            }
 
             if (r->operation == FFB_OP_START_SOLO) {
-                /* Stop all other effects */
                 for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
                     if ((i + 1U) != idx) {
                         s.effects[i].active = false;
@@ -186,6 +219,7 @@ void ffb_process_report(uint8_t report_id, const uint8_t *data, uint16_t len)
             e->active     = true;
             e->start_tick = HAL_GetTick();
             break;
+        }
 
         case FFB_OP_STOP:
             e->active = false;
@@ -427,6 +461,41 @@ static float _apply_lut(float torque_nm, float max_t)
  * ═══════════════════════════════════════════════════════════════════════════ */
 float ffb_compute_torque(float pos_turns, float vel_turns_s)
 {
+    bool any_active = false;
+
+    for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
+        if (s.effects[i].active) {
+            any_active = true;
+            break;
+        }
+    }
+
+    bool any_valid = false;
+
+    for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
+        FfbEffect_t *e = &s.effects[i];
+
+        if (!e->active) continue;
+
+        if (e->type == FFB_ET_CONSTANT && e->magnitude != 0) {
+            any_valid = true; break;
+        }
+
+        if ((e->type == FFB_ET_SPRING || e->type == FFB_ET_DAMPER) &&
+            (e->pos_coeff != 0 || e->neg_coeff != 0)) {
+            any_valid = true; break;
+        }
+
+        if ((e->type == FFB_ET_SINE || e->type == FFB_ET_SQUARE || e->type == FFB_ET_TRIANGLE) &&
+            e->per_magnitude != 0) {
+            any_valid = true; break;
+        }
+    }
+
+    if (!any_valid) {
+        return 0.0f;
+    }
+
     if (!s.actuators_enabled || s.paused) {
         /* Zero all debug fields when disabled */
         __builtin_memset(&g_ffb_debug, 0, sizeof(g_ffb_debug));
@@ -453,6 +522,26 @@ float ffb_compute_torque(float pos_turns, float vel_turns_s)
     for (uint8_t i = 0; i < FFB_MAX_EFFECTS; i++) {
         FfbEffect_t *e = &s.effects[i];
         if (!e->active || e->type == FFB_ET_NONE) continue;
+
+        switch (e->type) {
+            case FFB_ET_CONSTANT:
+                if (e->magnitude == 0) continue;
+                break;
+
+            case FFB_ET_SPRING:
+            case FFB_ET_DAMPER:
+                if (e->pos_coeff == 0 && e->neg_coeff == 0) continue;
+                break;
+
+            case FFB_ET_SINE:
+            case FFB_ET_SQUARE:
+            case FFB_ET_TRIANGLE:
+                if (e->per_magnitude == 0) continue;
+                break;
+
+            default:
+                continue;
+        }
 
         /* Expire finite-duration effects */
         if (e->duration_ms != 0xFFFFU) {
@@ -850,7 +939,7 @@ uint8_t ffb_get_pool_report(uint8_t *buf, uint8_t buf_size)
     buf[1] = (uint8_t)(pool & 0xFFU);
     buf[2] = (uint8_t)(pool >> 8U);
     buf[3] = FFB_MAX_EFFECTS;   /* simultaneous effects max */
-    buf[4] = 0U;                /* not device-managed pool */
+    buf[4] = 0x01;               /* not device-managed pool */
     return 5U;
 }
 
