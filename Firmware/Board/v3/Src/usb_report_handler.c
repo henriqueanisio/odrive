@@ -6,6 +6,7 @@
 #include "usbd_ioreq.h"
 
 #include "ffb.h"
+#include "ffb_pid.h"
 #include <stdint.h>
 
 #define HID_REPORT_TYPE_INPUT 1
