@@ -6,7 +6,6 @@
 #include "usbd_ioreq.h"
 
 #include "ffb.h"
-#include "ffb_pid.h"
 #include <stdint.h>
 
 #define HID_REPORT_TYPE_INPUT 1
@@ -28,11 +27,11 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req)
 
         switch (reportId)
         {
-        case FFB_REPORT_PID_BLOCK_LOAD:
+        case PID_POOL_FEATURE_REPORT_ID:
             size = ffb_get_block_load_report(buf, sizeof(buf));
             break;
 
-        case FFB_REPORT_PID_POOL:
+        case PID_BLOCK_LOAD_REPORT_ID:
             size = ffb_get_pool_report(buf, sizeof(buf));
             break;
 
