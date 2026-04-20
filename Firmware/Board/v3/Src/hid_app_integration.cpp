@@ -53,7 +53,6 @@ static void app_apply_config(void);
 /* ── PID State change tracking (set by hid_apply_ffb, consumed by hid_send_telemetry) ── */
 static volatile bool s_pid_state_dirty   = true;   /* true at boot → send initial state */
 static volatile bool s_pid_actuators_on  = false;
-extern volatile PIDStateReport g_state;
 
 /* ── Application callbacks ─────────────────────────────────────────────────── */
 static void app_set_axis_state(uint8_t state)
@@ -346,12 +345,12 @@ extern "C" void hid_send_telemetry(void)
 
         pid_report[0] = FFB_REPORT_PID_STATE;
 
+        /* Byte 1 = flags corretos do HID PID */
         pid_report[1] =
-            (g_state.devicePaused ? 0x01 : 0x00) |
-            (g_state.actuatorsEnabled ? 0x02 : 0x00) |
-            (g_state.effectPlaying ? 0x20 : 0x00);
+            (ffb_actuators_enabled() ? 0x02 : 0x00);  // bit1 = actuators enabled
 
-        pid_report[2] = g_state.effectBlockIndex;
+        /* Byte 2 = effect state */
+        pid_report[2] = 0x00; // sem efeito ativo por enquanto
 
         hid_queue_push(pid_report, sizeof(pid_report));
     }
