@@ -26,11 +26,11 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
 
           buf[0] = PID_POOL_FEATURE_REPORT_ID;
 
-          uint16_t pool = FFB_MAX_EFFECTS;
+          uint16_t pool = MAX_EFFECTS;
 
           buf[1] = pool & 0xFF;
           buf[2] = pool >> 8;
-          buf[3] = FFB_MAX_EFFECTS;
+          buf[3] = MAX_EFFECTS;
           buf[4] = 0;
 
           USBD_CtlSendData(pdev, buf, 5);
