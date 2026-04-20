@@ -850,7 +850,7 @@ uint8_t ffb_get_pool_report(uint8_t *buf, uint8_t buf_size)
     buf[1] = (uint8_t)(pool & 0xFFU);
     buf[2] = (uint8_t)(pool >> 8U);
     buf[3] = FFB_MAX_EFFECTS;   /* simultaneous effects max */
-    buf[4] = 0U;                /* not device-managed pool */
+    buf[4] = 1U;                /* not device-managed pool */
     return 5U;
 }
 
