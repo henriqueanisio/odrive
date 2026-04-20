@@ -512,9 +512,6 @@ extern "C" void hid_apply_ffb(void)
 {
     Axis &ax = axis0();
 
-    /* Only operate in closed loop — motor handles other states itself */
-    if (ax.current_state_ != Axis::AXIS_STATE_CLOSED_LOOP_CONTROL) return;
-
     /* Safety: zero torque if USB disconnected */
     if (hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED) {
         ax.controller_.input_torque_ = 0.0f;

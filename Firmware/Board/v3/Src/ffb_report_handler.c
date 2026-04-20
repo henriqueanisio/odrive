@@ -121,9 +121,11 @@ void On_DeviceControl(const PID_DeviceControlReport *data) {
   switch (data->control) {
   case DC_ENABLE_ACTUATORS:
     g_state.actuatorsEnabled = TRUE;
+    hid_force_pid_state_update();
     return;
   case DC_DISABLE_ACTUATORS:
     g_state.actuatorsEnabled = FALSE;
+    hid_force_pid_state_update();
     return;
   case DC_STOP_ALL_EFFECTS:
     StopAllEffects();
@@ -142,6 +144,15 @@ void On_DeviceControl(const PID_DeviceControlReport *data) {
   default:
     return;
   }
+}
+
+void hid_force_pid_state_update(void)
+{
+    extern volatile bool s_pid_state_dirty;
+    extern volatile bool s_pid_actuators_on;
+
+    s_pid_actuators_on = g_state.actuatorsEnabled;
+    s_pid_state_dirty  = true;
 }
 
 void On_DeviceGain(const PID_DeviceGainReport *data) {
