@@ -22,31 +22,33 @@ uint8_t HID_GetReport(USBD_HandleTypeDef *pdev, uint16_t wValue) {
     switch (reportId) {
       case PID_POOL_FEATURE_REPORT_ID:
       {
-          uint8_t buf[sizeof(PID_PoolFeatureReport) + 1];
+          uint8_t buf[5];
 
           buf[0] = PID_POOL_FEATURE_REPORT_ID;
 
-          PID_PoolFeatureReport report;
-          PIDPoolFeatureReport_Init(&report);
+          uint16_t pool = FFB_MAX_EFFECTS;
 
-          memcpy(&buf[1], &report, sizeof(report));
+          buf[1] = pool & 0xFF;
+          buf[2] = pool >> 8;
+          buf[3] = FFB_MAX_EFFECTS;
+          buf[4] = 0;
 
-          USBD_CtlSendData(pdev, buf, sizeof(buf));
-
+          USBD_CtlSendData(pdev, buf, 5);
           return TRUE;
       }
       case PID_BLOCK_LOAD_REPORT_ID:
       {
-          uint8_t buf[sizeof(PID_BlockLoadReport) + 1];
+          uint8_t buf[5];
 
           buf[0] = PID_BLOCK_LOAD_REPORT_ID;
+          buf[1] = s.last_load_index;
+          buf[2] = s.last_load_status;
 
-          PID_BlockLoadReport data = *FFB_GetPidBlockLoad();
+          uint16_t pool = FFB_MAX_EFFECTS;
+          buf[3] = pool & 0xFF;
+          buf[4] = pool >> 8;
 
-          memcpy(&buf[1], &data, sizeof(data));
-
-          USBD_CtlSendData(pdev, buf, sizeof(buf));
-          
+          USBD_CtlSendData(pdev, buf, 5);
           return TRUE;
       }
     default:
