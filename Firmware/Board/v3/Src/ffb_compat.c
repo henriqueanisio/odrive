@@ -1,11 +1,3 @@
-/* ffb_compat.c — Bridges the legacy ffb_pid.h API used by hid_app_integration.cpp
- * to the new modular FFB engine (ffb_engine/ffb_forces/ffb_axis/ffb_report_handler).
- *
- * Position scale: 1 turn → 32767 units (matches HID axis ±32767 range).
- * Force scale:    FFBEngine_CalculateForce() returns ±16383;
- *                 scale = ffb_max_torque × ffb_gain / 16383.
- */
-
 #include "ffb_pid.h"
 #include "ffb.h"
 #include "ffb_engine.h"

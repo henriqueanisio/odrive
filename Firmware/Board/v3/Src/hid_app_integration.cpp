@@ -53,6 +53,7 @@ static void app_apply_config(void);
 /* ── PID State change tracking (set by hid_apply_ffb, consumed by hid_send_telemetry) ── */
 static volatile bool s_pid_state_dirty   = true;   /* true at boot → send initial state */
 static volatile bool s_pid_actuators_on  = false;
+extern volatile PIDStateReport g_state;
 
 /* ── Application callbacks ─────────────────────────────────────────────────── */
 static void app_set_axis_state(uint8_t state)

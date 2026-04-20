@@ -349,7 +349,7 @@ static uint8_t USBD_HID_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *re
           break;
 
         case HID_REQ_GET_REPORT:
-          if (!HID_GetReport(pdev, req->wValue))
+          if (!HID_GetReport(pdev, req))
           {
             USBD_CtlError(pdev, req);
             ret = USBD_FAIL;
